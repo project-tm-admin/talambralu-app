@@ -1,0 +1,102 @@
+import * as cdk from 'aws-cdk-lib';
+import { Construct } from 'constructs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as rds from 'aws-cdk-lib/aws-rds';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+
+export class InfraStack extends cdk.Stack {
+  public readonly vpc: ec2.Vpc;
+  public readonly cluster: ecs.Cluster;
+  public readonly fargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
+  public readonly database: rds.DatabaseInstance; // Changed from DatabaseCluster
+  public readonly mediaBucket: s3.Bucket;
+
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // Task 2: Create a new VPC
+    this.vpc = new ec2.Vpc(this, 'TalambraluVpc', {
+      maxAzs: 2,
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: 'ingress',
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        {
+          cidrMask: 24,
+          name: 'application',
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        },
+        {
+          cidrMask: 28,
+          name: 'rds',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+        }
+      ]
+    });
+
+    // Task 3: ECS Fargate Cluster & ALB
+    this.cluster = new ecs.Cluster(this, 'TalambraluCluster', {
+      vpc: this.vpc,
+      clusterName: 'Talambralu-Production-Cluster'
+    });
+
+    this.fargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'TalambraluFargateService', {
+      cluster: this.cluster,
+      memoryLimitMiB: 512,
+      cpu: 256,
+      taskImageOptions: {
+        // Placeholder image until NestJS app is ready
+        image: ecs.ContainerImage.fromRegistry('amazon/amazon-ecs-sample'),
+        containerPort: 80,
+      },
+      publicLoadBalancer: true,
+      taskSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+      }
+    });
+
+    // Task 4: RDS PostgreSQL (Downgraded to Free Tier t3.micro for dev)
+    this.database = new rds.DatabaseInstance(this, 'TalambraluDatabase', {
+      engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_15 }),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO), // Free Tier eligible
+      vpc: this.vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+      },
+      databaseName: 'talambralu',
+      allocatedStorage: 20, // 20GB Free Tier
+      maxAllocatedStorage: 25,
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For dev only - change to RETAIN in prod
+      deletionProtection: false, // For dev only
+    });
+
+    // Allow Fargate to connect to RDS
+    this.database.connections.allowDefaultPortFrom(this.fargateService.service.connections);
+
+    // Task 5: S3 Storage Bucket with 14-day deletion lifecycle for verification docs
+    this.mediaBucket = new s3.Bucket(this, 'TalambraluMediaBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST],
+          allowedOrigins: ['*'], // Restrict this in production
+          allowedHeaders: ['*'],
+        },
+      ],
+      lifecycleRules: [
+        {
+          id: 'DeleteVerificationDocs',
+          prefix: 'verification-docs/',
+          expiration: cdk.Duration.days(14),
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+  }
+}

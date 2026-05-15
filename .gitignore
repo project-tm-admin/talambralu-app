@@ -1,0 +1,38 @@
+# Node.js
+node_modules/
+dist/
+lib-cov/
+*.seed
+*.log
+*.csv
+*.diff
+.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# BMad / AI Frameworks
+.agent/
+.agents/
+.claude/
+.gemini/
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Deployment / Infra
+cdk.out/
+terraform.tfstate*
+.terraform/
+
+# Project Specific
+_bmad-output/implementation-artifacts/story-*.md
+_bmad-output/implementation-artifacts/deferred-work.md
+!_bmad-output/planning-artifacts/
+!_bmad-output/implementation-artifacts/sprint-status.md
