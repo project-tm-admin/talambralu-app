@@ -208,11 +208,11 @@ export class VerificationService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Invalid object key structure: ${key}`);
       return;
     }
-    
+
     // Ignore paystubs in the liveness checker
     if (parts[1] === 'paystubs') {
-        this.logger.log(`Ignoring paystub object in selfie queue: ${key}`);
-        return;
+      this.logger.log(`Ignoring paystub object in selfie queue: ${key}`);
+      return;
     }
 
     const userId = parts[1];
@@ -316,8 +316,10 @@ export class VerificationService implements OnModuleInit, OnModuleDestroy {
       const hasBlocks = response.Blocks && response.Blocks.length > 0;
 
       if (hasBlocks) {
-        this.logger.log(`Income verified for user ${userId}. Deleting document...`);
-        
+        this.logger.log(
+          `Income verified for user ${userId}. Deleting document...`,
+        );
+
         // Delete the document from S3 first to ensure no sensitive data leaks if DB update fails
         const deleteCommand = new DeleteObjectCommand({
           Bucket: bucket,
