@@ -8,7 +8,9 @@ import * as admin from 'firebase-admin';
 
 jest.mock('firebase-admin', () => ({
   auth: jest.fn().mockReturnValue({
-    verifyIdToken: jest.fn().mockResolvedValue({ uid: 'test-user-id', email: 'test@example.com' }),
+    verifyIdToken: jest
+      .fn()
+      .mockResolvedValue({ uid: 'test-user-id', email: 'test@example.com' }),
   }),
   initializeApp: jest.fn(),
   credential: {

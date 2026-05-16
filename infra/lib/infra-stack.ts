@@ -5,6 +5,9 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 export class InfraStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
@@ -12,6 +15,7 @@ export class InfraStack extends cdk.Stack {
   public readonly fargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
   public readonly database: rds.DatabaseInstance; // Changed from DatabaseCluster
   public readonly mediaBucket: s3.Bucket;
+  public readonly selfieQueue: sqs.Queue;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -98,5 +102,43 @@ export class InfraStack extends cdk.Stack {
       ],
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
+
+    // Story 2.2: DLQ for selfie processing
+    const selfieDlq = new sqs.Queue(this, 'SelfieProcessingDLQ', {
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    // Story 2.2: SQS Queue for selfie processing
+    this.selfieQueue = new sqs.Queue(this, 'SelfieProcessingQueue', {
+      visibilityTimeout: cdk.Duration.seconds(300), // Rekognition might take a moment
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: selfieDlq,
+      }
+    });
+
+    // Notify SQS when a new object is created in the verification-docs prefix
+    this.mediaBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.SqsDestination(this.selfieQueue),
+      { prefix: 'verification-docs/' }
+    );
+
+    // Grant Fargate task permissions to read from SQS
+    this.selfieQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
+
+    // Grant Fargate task permissions to use Rekognition
+    this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['rekognition:DetectFaces'],
+        resources: ['*'], // Rekognition DetectFaces doesn't use specific ARNs
+      })
+    );
+
+    // Pass Queue URL to container
+    this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
+      'AWS_SQS_SELFIE_QUEUE_URL',
+      this.selfieQueue.queueUrl
+    );
   }
 }

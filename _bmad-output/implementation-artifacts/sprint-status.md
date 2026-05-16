@@ -31,7 +31,7 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 5 | `Story 2.1` | S3 Upload & Image Handling (SQS triggers) | `Story 1.4` | Medium | `DONE` |
-| 6 | `Story 2.2` | Liveness Check (Rekognition Worker) | `Story 2.1` | Medium | `TODO` |
+| 6 | `Story 2.2` | Liveness Check (Rekognition Worker) | `Story 2.1` | Medium | `DONE` |
 | 7 | `Story 2.3` | Income Verification (Textract Worker) | `Story 2.1` | Large | `TODO` |
 
 **Sprint Checkpoint:**

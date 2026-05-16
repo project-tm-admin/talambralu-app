@@ -14,7 +14,9 @@ export class UploadService {
   constructor(private readonly configService: ConfigService) {
     const region = this.configService.get<string>('AWS_REGION');
     const publicBucket = this.configService.get<string>('AWS_S3_PUBLIC_BUCKET');
-    const privateBucket = this.configService.get<string>('AWS_S3_PRIVATE_BUCKET');
+    const privateBucket = this.configService.get<string>(
+      'AWS_S3_PRIVATE_BUCKET',
+    );
 
     if (!region || !publicBucket || !privateBucket) {
       throw new InternalServerErrorException('AWS configuration is missing');
@@ -33,7 +35,7 @@ export class UploadService {
     const isPrivate = purpose === FilePurpose.VERIFICATION_DOC;
     const bucket = isPrivate ? this.privateBucket : this.publicBucket;
     const prefix = isPrivate ? 'verification-docs' : 'profile-photos';
-    
+
     const fileId = uuidv4();
     const key = `${prefix}/${userId}/${fileId}`;
 

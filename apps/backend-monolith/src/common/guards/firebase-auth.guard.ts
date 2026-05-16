@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import * as admin from 'firebase-admin';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
@@ -20,7 +25,10 @@ export class FirebaseAuthGuard implements CanActivate {
     const token = this.extractTokenFromHeader(request);
     if (!token) {
       throw new UnauthorizedException({
-        error: { code: 'UNAUTHORIZED', message: 'Missing authentication token' },
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Missing authentication token',
+        },
       });
     }
 

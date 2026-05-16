@@ -11,7 +11,7 @@ export class AuthController {
       user: {
         uid: user?.uid || 'mock-uid-from-test',
         email: user?.email,
-      }
+      },
     };
   }
 }

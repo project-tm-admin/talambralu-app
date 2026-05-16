@@ -49,7 +49,11 @@ describe('UploadService', () => {
   describe('generatePresignedPost', () => {
     it('should generate a presigned POST for a profile photo', async () => {
       const userId = 'firebase-uid';
-      const result = await service.generatePresignedPost(userId, FilePurpose.PROFILE_PHOTO, 'image/jpeg');
+      const result = await service.generatePresignedPost(
+        userId,
+        FilePurpose.PROFILE_PHOTO,
+        'image/jpeg',
+      );
 
       expect(result.url).toBe('https://mocked-presigned-url.com');
       expect(result.key).toContain('profile-photos/firebase-uid/');
@@ -57,7 +61,11 @@ describe('UploadService', () => {
 
     it('should generate a presigned POST for a verification doc', async () => {
       const userId = 'firebase-uid';
-      const result = await service.generatePresignedPost(userId, FilePurpose.VERIFICATION_DOC, 'application/pdf');
+      const result = await service.generatePresignedPost(
+        userId,
+        FilePurpose.VERIFICATION_DOC,
+        'application/pdf',
+      );
 
       expect(result.url).toBe('https://mocked-presigned-url.com');
       expect(result.key).toContain('verification-docs/firebase-uid/');

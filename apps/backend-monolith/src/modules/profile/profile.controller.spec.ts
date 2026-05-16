@@ -54,7 +54,11 @@ describe('ProfileController', () => {
   describe('getMe', () => {
     it('should return my profile', async () => {
       const user = { uid: 'firebase-uid' };
-      const expectedProfile = { id: 'uuid', userId: user.uid, fullName: 'John Doe' };
+      const expectedProfile = {
+        id: 'uuid',
+        userId: user.uid,
+        fullName: 'John Doe',
+      };
       mockProfileService.getProfileByUserId.mockResolvedValue(expectedProfile);
 
       const result = await controller.getMe(user);

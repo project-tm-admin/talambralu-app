@@ -14,6 +14,10 @@ export class UploadController {
     @CurrentUser() user: { uid: string },
     @Body() dto: CreatePresignedPostDto,
   ) {
-    return this.uploadService.generatePresignedPost(user.uid, dto.purpose, dto.contentType);
+    return this.uploadService.generatePresignedPost(
+      user.uid,
+      dto.purpose,
+      dto.contentType,
+    );
   }
 }

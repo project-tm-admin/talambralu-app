@@ -33,15 +33,26 @@ describe('UploadController', () => {
   describe('createPresignedPost', () => {
     it('should return a presigned post object', async () => {
       const user = { uid: 'firebase-uid' };
-      const dto = { purpose: FilePurpose.PROFILE_PHOTO, contentType: 'image/jpeg' };
-      const expectedResult = { url: 'http://test', fields: { key: 'test/key' }, key: 'test/key' };
+      const dto = {
+        purpose: FilePurpose.PROFILE_PHOTO,
+        contentType: 'image/jpeg',
+      };
+      const expectedResult = {
+        url: 'http://test',
+        fields: { key: 'test/key' },
+        key: 'test/key',
+      };
 
       mockUploadService.generatePresignedPost.mockResolvedValue(expectedResult);
 
       const result = await controller.createPresignedPost(user, dto);
 
       expect(result).toEqual(expectedResult);
-      expect(service.generatePresignedPost).toHaveBeenCalledWith(user.uid, dto.purpose, dto.contentType);
+      expect(service.generatePresignedPost).toHaveBeenCalledWith(
+        user.uid,
+        dto.purpose,
+        dto.contentType,
+      );
     });
   });
 });

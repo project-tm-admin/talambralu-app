@@ -9,13 +9,17 @@ import * as admin from 'firebase-admin';
     {
       provide: 'FIREBASE_APP',
       useFactory: (configService: ConfigService) => {
-        const projectId = configService.get<string>('FIREBASE_PROJECT_ID') || 'demo-project';
+        const projectId =
+          configService.get<string>('FIREBASE_PROJECT_ID') || 'demo-project';
         const clientEmail = configService.get<string>('FIREBASE_CLIENT_EMAIL');
-        const privateKey = configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
+        const privateKey = configService
+          .get<string>('FIREBASE_PRIVATE_KEY')
+          ?.replace(/\\n/g, '\n');
 
-        const credential = clientEmail && privateKey
-          ? admin.credential.cert({ projectId, clientEmail, privateKey })
-          : admin.credential.applicationDefault(); // Fallback for local/ADC
+        const credential =
+          clientEmail && privateKey
+            ? admin.credential.cert({ projectId, clientEmail, privateKey })
+            : admin.credential.applicationDefault(); // Fallback for local/ADC
 
         // Prevent multiple initializations in dev
         if (!admin.apps.length) {
