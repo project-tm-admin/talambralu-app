@@ -1,3 +1,4 @@
+
 # Sprint Plan: Talambralu MVP
 
 ## Overview
@@ -32,7 +33,7 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 5 | `Story 2.1` | S3 Upload & Image Handling (SQS triggers) | `Story 1.4` | Medium | `DONE` |
 | 6 | `Story 2.2` | Liveness Check (Rekognition Worker) | `Story 2.1` | Medium | `DONE` |
-| 7 | `Story 2.3` | Income Verification (Textract Worker) | `Story 2.1` | Large | `TODO` |
+| 7 | `Story 2.3` | Income Verification (Textract Worker) | `Story 2.1` | Large | `DONE` |
 
 **Sprint Checkpoint:**
 - [ ] User can request an S3 presigned URL and upload a file.

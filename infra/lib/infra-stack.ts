@@ -16,6 +16,7 @@ export class InfraStack extends cdk.Stack {
   public readonly database: rds.DatabaseInstance; // Changed from DatabaseCluster
   public readonly mediaBucket: s3.Bucket;
   public readonly selfieQueue: sqs.Queue;
+  public readonly incomeQueue: sqs.Queue;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -117,17 +118,41 @@ export class InfraStack extends cdk.Stack {
       }
     });
 
-    // Notify SQS when a new object is created in the verification-docs prefix
+    // Story 2.3: DLQ for income processing
+    const incomeDlq = new sqs.Queue(this, 'IncomeProcessingDLQ', {
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    // Story 2.3: SQS Queue for income processing
+    this.incomeQueue = new sqs.Queue(this, 'IncomeProcessingQueue', {
+      visibilityTimeout: cdk.Duration.seconds(300), // Textract might take a moment
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: incomeDlq,
+      }
+    });
+
+    // Notify SQS when a new object is created in the verification-docs/selfies/ prefix
+    // Reverting to 'verification-docs/' for selfies to prevent breaking changes from Story 2.1
     this.mediaBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
       new s3n.SqsDestination(this.selfieQueue),
-      { prefix: 'verification-docs/' }
+      { prefix: 'verification-docs/' } // Using the old prefix, but we'll let the application code ignore paystubs
+    );
+
+    // Notify SQS when a new object is created in the verification-docs/paystubs/ prefix
+    // (Note: This will overlap with the root prefix above. The selfie consumer must ignore paystub keys)
+    this.mediaBucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.SqsDestination(this.incomeQueue),
+      { prefix: 'verification-docs/paystubs/' }
     );
 
     // Grant Fargate task permissions to read from SQS
     this.selfieQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
+    this.incomeQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
 
-    // Grant Fargate task permissions to use Rekognition
+    // Grant Fargate task permissions to use Rekognition, Textract, and S3 Delete
     this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['rekognition:DetectFaces'],
@@ -135,10 +160,28 @@ export class InfraStack extends cdk.Stack {
       })
     );
 
-    // Pass Queue URL to container
+    this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['textract:AnalyzeDocument'],
+        resources: ['*'],
+      })
+    );
+
+    this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:DeleteObject'],
+        resources: [this.mediaBucket.arnForObjects('verification-docs/*')],
+      })
+    );
+
+    // Pass Queue URLs to container
     this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
       'AWS_SQS_SELFIE_QUEUE_URL',
       this.selfieQueue.queueUrl
+    );
+    this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
+      'AWS_SQS_INCOME_QUEUE_URL',
+      this.incomeQueue.queueUrl
     );
   }
 }
