@@ -14,8 +14,13 @@ async function bootstrap() {
   );
 
   const redisIoAdapter = new RedisIoAdapter(app);
-  await redisIoAdapter.connectToRedis();
-  app.useWebSocketAdapter(redisIoAdapter);
+  try {
+    await redisIoAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisIoAdapter);
+  } catch (error) {
+    console.error('Failed to connect to Redis, WebSockets might not work correctly across instances:', error.message);
+    // Optionally fallback to default adapter or terminate if Redis is strictly required
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }

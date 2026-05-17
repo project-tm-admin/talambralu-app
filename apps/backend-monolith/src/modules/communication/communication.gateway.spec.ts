@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommunicationGateway } from './communication.gateway';
 import { Socket } from 'socket.io';
+import { MatchService } from '../match/match.service';
+import { WsException } from '@nestjs/websockets';
 
 describe('CommunicationGateway', () => {
   let gateway: CommunicationGateway;
   let mockFirebaseApp;
+  let mockMatchService;
 
   beforeEach(async () => {
     mockFirebaseApp = {
@@ -13,12 +16,20 @@ describe('CommunicationGateway', () => {
       }),
     };
 
+    mockMatchService = {
+      isUserInMatch: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CommunicationGateway,
         {
           provide: 'FIREBASE_APP',
           useValue: mockFirebaseApp,
+        },
+        {
+          provide: MatchService,
+          useValue: mockMatchService,
         },
       ],
     }).compile();
@@ -80,16 +91,40 @@ describe('CommunicationGateway', () => {
   });
 
   describe('handleJoinMatch', () => {
-    it('should join the correct room', () => {
+    it('should join the correct room if user is in match', async () => {
       const client = {
         join: jest.fn(),
         data: { userId: 'user1' },
       } as any;
 
-      const result = gateway.handleJoinMatch(client, 'match123');
+      mockMatchService.isUserInMatch.mockResolvedValue(true);
 
+      const result = await gateway.handleJoinMatch(client, 'match123');
+
+      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith('user1', 'match123');
       expect(client.join).toHaveBeenCalledWith('match_match123');
       expect(result).toEqual({ event: 'joinedRoom', data: 'match123' });
+    });
+
+    it('should throw WsException if user is not in match', async () => {
+      const client = {
+        join: jest.fn(),
+        data: { userId: 'user1' },
+      } as any;
+
+      mockMatchService.isUserInMatch.mockResolvedValue(false);
+
+      await expect(gateway.handleJoinMatch(client, 'match123')).rejects.toThrow(WsException);
+      expect(client.join).not.toHaveBeenCalled();
+    });
+
+    it('should throw WsException if matchId is missing', async () => {
+      const client = {
+        join: jest.fn(),
+        data: { userId: 'user1' },
+      } as any;
+
+      await expect(gateway.handleJoinMatch(client, null)).rejects.toThrow(WsException);
     });
   });
 });

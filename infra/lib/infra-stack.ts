@@ -20,7 +20,7 @@ export class InfraStack extends cdk.Stack {
   public readonly incomeQueue: sqs.Queue;
   public readonly redisSubnetGroup: elasticache.CfnSubnetGroup;
   public readonly redisSecurityGroup: ec2.SecurityGroup;
-  public readonly redisCluster: elasticache.CfnCacheCluster;
+  public readonly redisReplicationGroup: elasticache.CfnReplicationGroup;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -102,19 +102,24 @@ export class InfraStack extends cdk.Stack {
       subnetIds: this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
     });
 
-    this.redisCluster = new elasticache.CfnCacheCluster(this, 'TalambraluRedis', {
+    // Hardened Redis: Multi-AZ for HA, Transit & At-Rest Encryption enabled
+    this.redisReplicationGroup = new elasticache.CfnReplicationGroup(this, 'TalambraluRedisGroup', {
+      replicationGroupDescription: 'Hardened Redis Cluster for Talambralu',
       cacheNodeType: 'cache.t3.micro',
       engine: 'redis',
-      numCacheNodes: 1,
-      clusterName: 'talambralu-redis',
-      vpcSecurityGroupIds: [this.redisSecurityGroup.securityGroupId],
+      numCacheClusters: 2, // 1 Primary + 1 Replica for High Availability
+      automaticFailoverEnabled: true,
+      multiAzEnabled: true,
+      transitEncryptionEnabled: true,
+      atRestEncryptionEnabled: true,
+      securityGroupIds: [this.redisSecurityGroup.securityGroupId],
       cacheSubnetGroupName: this.redisSubnetGroup.ref,
     });
 
     // Pass Redis URL to container
     this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
       'REDIS_URL',
-      `redis://${this.redisCluster.attrRedisEndpointAddress}:${this.redisCluster.attrRedisEndpointPort}`
+      `rediss://${this.redisReplicationGroup.attrPrimaryEndPointAddress}:${this.redisReplicationGroup.attrPrimaryEndPointPort}`
     );
 
     // Task 5: S3 Storage Bucket with 14-day deletion lifecycle for verification docs

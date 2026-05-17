@@ -6,14 +6,17 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, Inject } from '@nestjs/common';
 import * as admin from 'firebase-admin';
+import { MatchService } from '../match/match.service';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+    credentials: true,
   },
 })
 export class CommunicationGateway
@@ -24,7 +27,10 @@ export class CommunicationGateway
 
   private readonly logger = new Logger(CommunicationGateway.name);
 
-  constructor(@Inject('FIREBASE_APP') private firebaseApp: admin.app.App) {}
+  constructor(
+    @Inject('FIREBASE_APP') private firebaseApp: admin.app.App,
+    private matchService: MatchService,
+  ) {}
 
   async handleConnection(client: Socket) {
     try {
@@ -35,14 +41,17 @@ export class CommunicationGateway
         return;
       }
 
-      const token = authHeader.replace('Bearer ', '');
+      const token = authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : authHeader;
+
       const decodedToken = await this.firebaseApp.auth().verifyIdToken(token);
-      
+
       // Store user id in socket instance
       client.data.userId = decodedToken.uid;
       this.logger.log(`Client connected: ${client.id}, User: ${decodedToken.uid}`);
     } catch (error) {
-      this.logger.warn(`Authentication failed for client: ${client.id}`);
+      this.logger.warn(`Authentication failed for client: ${client.id}: ${error.message}`);
       client.disconnect(true);
     }
   }
@@ -52,15 +61,25 @@ export class CommunicationGateway
   }
 
   @SubscribeMessage('joinMatch')
-  handleJoinMatch(
+  async handleJoinMatch(
     @ConnectedSocket() client: Socket,
     @MessageBody() matchId: string,
   ) {
-    if (!matchId) return;
+    if (!matchId || typeof matchId !== 'string') {
+      throw new WsException('Invalid matchId');
+    }
 
-    // TODO in Story 4.2: Verify that the user is actually part of this match before joining
-    client.join(`match_${matchId}`);
-    this.logger.log(`User ${client.data.userId} joined room match_${matchId}`);
+    const userId = client.data.userId;
+    const isParticipant = await this.matchService.isUserInMatch(userId, matchId);
+
+    if (!isParticipant) {
+      this.logger.warn(`User ${userId} attempted to join unauthorized match room: ${matchId}`);
+      throw new WsException('Unauthorized access to match room');
+    }
+
+    await client.join(`match_${matchId}`);
+    this.logger.log(`User ${userId} joined room match_${matchId}`);
     return { event: 'joinedRoom', data: matchId };
   }
 }
+

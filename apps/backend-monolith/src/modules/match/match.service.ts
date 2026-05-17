@@ -112,4 +112,16 @@ export class MatchService {
       orderBy: { updatedAt: 'desc' },
     });
   }
+
+  async isUserInMatch(userId: string, matchId: string): Promise<boolean> {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+    });
+
+    if (!match || match.status !== MatchStatus.ACCEPTED) {
+      return false;
+    }
+
+    return match.senderId === userId || match.receiverId === userId;
+  }
 }
