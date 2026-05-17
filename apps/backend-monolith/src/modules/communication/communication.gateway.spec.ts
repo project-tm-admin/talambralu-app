@@ -1,13 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommunicationGateway } from './communication.gateway';
-import { Socket } from 'socket.io';
+import { Socket, Server } from 'socket.io';
 import { MatchService } from '../match/match.service';
+import { CommunicationService } from './communication.service';
 import { WsException } from '@nestjs/websockets';
 
 describe('CommunicationGateway', () => {
   let gateway: CommunicationGateway;
   let mockFirebaseApp;
   let mockMatchService;
+  let mockCommunicationService;
 
   beforeEach(async () => {
     mockFirebaseApp = {
@@ -18,6 +20,10 @@ describe('CommunicationGateway', () => {
 
     mockMatchService = {
       isUserInMatch: jest.fn(),
+    };
+
+    mockCommunicationService = {
+      saveMessage: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -31,10 +37,18 @@ describe('CommunicationGateway', () => {
           provide: MatchService,
           useValue: mockMatchService,
         },
+        {
+          provide: CommunicationService,
+          useValue: mockCommunicationService,
+        },
       ],
     }).compile();
 
     gateway = module.get<CommunicationGateway>(CommunicationGateway);
+    gateway.server = {
+      to: jest.fn().mockReturnThis(),
+      emit: jest.fn(),
+    } as any;
   });
 
   it('should be defined', () => {
@@ -125,6 +139,38 @@ describe('CommunicationGateway', () => {
       } as any;
 
       await expect(gateway.handleJoinMatch(client, null)).rejects.toThrow(WsException);
+    });
+  });
+
+  describe('handleSendMessage', () => {
+    it('should save and broadcast message if user is in match', async () => {
+      const client = {
+        data: { userId: 'user1' },
+      } as any;
+      const payload = { matchId: 'match123', content: 'hello' };
+      const savedMessage = { id: 'msg1', ...payload, senderId: 'user1' };
+
+      mockMatchService.isUserInMatch.mockResolvedValue(true);
+      mockCommunicationService.saveMessage.mockResolvedValue(savedMessage);
+
+      const result = await gateway.handleSendMessage(client, payload);
+
+      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith('user1', 'match123');
+      expect(mockCommunicationService.saveMessage).toHaveBeenCalledWith('match123', 'user1', 'hello');
+      expect(gateway.server.to).toHaveBeenCalledWith('match_match123');
+      expect(gateway.server.emit).toHaveBeenCalledWith('newMessage', savedMessage);
+      expect(result).toEqual({ status: 'ok', messageId: 'msg1' });
+    });
+
+    it('should throw WsException if user is not in match', async () => {
+      const client = {
+        data: { userId: 'user1' },
+      } as any;
+      const payload = { matchId: 'match123', content: 'hello' };
+
+      mockMatchService.isUserInMatch.mockResolvedValue(false);
+
+      await expect(gateway.handleSendMessage(client, payload)).rejects.toThrow(WsException);
     });
   });
 });

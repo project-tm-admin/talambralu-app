@@ -48,7 +48,7 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 | 8 | `Story 3.1` | Profile Search & Discovery (Postgres TSVector) | `Story 1.4` | Medium | `DONE` |
 | 9 | `Story 3.2` | Double Opt-In State Machine (Interests) | `Story 3.1` | Medium | `DONE` |
 | 10 | `Story 4.1` | WebSocket Infrastructure (Redis Pub/Sub) | `Story 1.3` | Medium | `DONE` |
-| 11 | `Story 4.2` | Real-time Messaging (Persistence) | `Story 4.1`, `3.2` | Large | `TODO` |
+| 11 | `Story 4.2` | Real-time Messaging (Persistence) | `Story 4.1`, `3.2` | Large | `DONE` |
 
 **Sprint Checkpoint:**
 - [ ] Users can query the discovery endpoint with filters.
