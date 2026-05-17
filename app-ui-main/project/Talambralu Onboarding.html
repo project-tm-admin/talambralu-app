@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Talambralu — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Serif+Telugu:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #E8E4DB; font-family: "Geist", -apple-system, sans-serif; }
+  * { -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot-error" style="position:fixed;top:0;left:0;right:0;background:#fee;color:#900;font:14px/1.4 monospace;padding:12px;z-index:99999;display:none;white-space:pre-wrap"></div>
+<script>
+window.addEventListener('error', (e) => {
+  const el = document.getElementById('boot-error');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = (el.textContent || '') + '\n' + (e.message || e.error?.message || 'unknown') + ' @ ' + (e.filename||'') + ':' + (e.lineno||'');
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const el = document.getElementById('boot-error');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = (el.textContent || '') + '\nUnhandled rejection: ' + (e.reason?.message || e.reason);
+});
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script src="image-slot.js"></script>
+<script type="text/babel" src="screen-primitives.jsx"></script>
+<script type="text/babel" src="screens-1-4.jsx"></script>
+<script type="text/babel" src="screens-5-8.jsx"></script>
+<script type="text/babel" src="screens-9-12.jsx"></script>
+<script type="text/babel" src="screens-13-16.jsx"></script>
+<script type="text/babel" src="screens-17-18.jsx"></script>
+<script type="text/babel" src="screens-19-21.jsx"></script>
+<script type="text/babel" src="screens-22-23.jsx"></script>
+<script type="text/babel" src="screens-24-26.jsx"></script>
+<script type="text/babel" src="motions.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "mandapWhite",
+  "ink": "charcoal",
+  "showCulturalMotifs": true,
+  "showTeluguScript": true,
+  "displayFont": "Cormorant Garamond",
+  "photoHeight": 380
+}/*EDITMODE-END*/;
+
+// Ink swatches — replaces the harsh near-black. All chosen with enough
+// contrast on the cream backgrounds. OKLCH so chroma reads consistent.
+const INKS = {
+  sandalwood: { ink: '#000000', ink2: '#222222', mute: '#555555' },
+  maroon:     { ink: '#000000', ink2: '#222222', mute: '#555555' },
+  indigo:     { ink: '#000000', ink2: '#222222', mute: '#555555' },
+  forest:     { ink: '#000000', ink2: '#222222', mute: '#555555' },
+  charcoal:   { ink: '#000000', ink2: '#222222', mute: '#555555' },
+};
+
+const THEMES = {
+  jasmine:  { bg: '#FBF8F3', surface: '#FFFFFF', field: '#F2EDE4',
+    accent: '#B85C3A', accentSoft: '#F4DDD0', accentInk: '#7A3A22' },
+  turmeric: { bg: '#FBF6E8', surface: '#FFFFFF', field: '#F4ECCF',
+    accent: '#C68A1F', accentSoft: '#F4E4BD', accentInk: '#7D5A14' },
+  haldi:    { bg: '#FBEFC8', surface: '#FFF7DD', field: '#F4E4A8',
+    accent: '#D4A017', accentSoft: '#F0DC8F', accentInk: '#7A5C0E' },
+  bumble:   { bg: '#FFF1A8', surface: '#FFFAE0', field: '#FFE574',
+    accent: '#F5C518', accentSoft: '#FFE978', accentInk: '#1F1B12' },
+  rose:     { bg: '#F7EBDC', surface: '#FFFFFF', field: '#F3DFCB',
+    accent: '#6B1F2A', accentSoft: '#EFD0C8', accentInk: '#4F1620' },
+  cream:    { bg: '#F8F1EC', surface: '#FFFFFF', field: '#EFE3DB',
+    accent: '#A03A3A', accentSoft: '#EFD5D5', accentInk: '#6E2424' },
+  stone:    { bg: '#F5F4F0', surface: '#FFFFFF', field: '#EAE8E2',
+    accent: '#B85C3A', accentSoft: '#F4DDD0', accentInk: '#7A3A22' },
+  white:    { bg: '#FFFFFF', surface: '#FFFFFF', field: '#F4F2EE',
+    accent: '#B85C3A', accentSoft: '#F4DDD0', accentInk: '#7A3A22' },
+  coral:    { bg: '#FFFFFF', surface: '#FFFFFF', field: '#FCE6DC',
+    accent: '#ED8A6F', accentSoft: '#F7CBB6', accentInk: '#2D1810' },
+  crimson:  { bg: '#EAE9EE', surface: '#FFFFFF', field: '#EAE9EE',
+    accent: '#9F92E8', accentSoft: '#FAE7C8', accentInk: '#090124' },
+  crimsonWhite: { bg: '#FFFFFF', surface: '#FFFFFF', field: '#F4F3F8',
+    accent: '#9F92E8', accentSoft: '#FAE7C8', accentInk: '#090124' },
+  mandap:   { bg: '#F7E9D6', surface: '#FBF1E2', field: '#F0DCC2',
+    accent: '#8B1F2E', accentSoft: '#F3C9B5', accentInk: '#6E1622' },
+  mandapWhite: { bg: '#FFFFFF', surface: '#FFFFFF', field: '#F7EFE4',
+    accent: '#8B1F2E', accentSoft: '#F3C9B5', accentInk: '#6E1622' },
+};
+
+function applyTheme(theme, ink) {
+  const t = THEMES[theme] || THEMES.jasmine;
+  const i = INKS[ink] || INKS.sandalwood;
+  Object.assign(window.TLM, t, i, {
+    hair: 'rgba(42,39,35,0.08)',
+    hair2: 'rgba(42,39,35,0.16)',
+    verify: '#3D8A5C', verifySoft: '#DCEFE2',
+  });
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply theme SYNCHRONOUSLY during render so children read fresh tokens.
+  // (useEffect runs after children paint — too late; screens would show stale TLM.)
+  applyTheme(t.theme, t.ink);
+  window.TLM_FONT.display = `"${t.displayFont}", "Cormorant Garamond", Georgia, serif`;
+  window.TLM_PHOTO_H = t.photoHeight;
+
+  React.useEffect(() => {
+    document.body.style.background = t.theme === 'turmeric' ? '#E8DFC0' :
+      t.theme === 'haldi' ? '#E8D88A' :
+      t.theme === 'bumble' ? '#E8C940' :
+      t.theme === 'rose' ? '#E8D5BC' :
+      t.theme === 'cream' ? '#E5D5CB' : t.theme === 'stone' ? '#DCDAD2' :
+      t.theme === 'white' ? '#E5E2DD' :
+      t.theme === 'coral' ? '#E5E2DD' :
+      t.theme === 'crimson' ? '#D8D6E0' :
+      t.theme === 'crimsonWhite' ? '#E5E3EC' :
+      t.theme === 'mandap' ? '#E5D5BC' :
+      t.theme === 'mandapWhite' ? '#E5E2DD' : '#E8E4DB';
+  }, [t.theme, t.ink, t.displayFont, t.photoHeight]);
+
+  // Force re-render of children when tweaks change by keying on theme
+  const k = `${t.theme}-${t.ink}-${t.showCulturalMotifs}-${t.showTeluguScript}-${t.displayFont}-${t.photoHeight}`;
+
+  const flows = [
+    {
+      id: 'auth',
+      title: '1 · Sign up & Authentication',
+      subtitle: 'Entry · account creation · verification',
+      screens: [
+        ['email-signup', 'Sign up · Email', S20_EmailSignup],
+        ['phone', 'Phone signup', S02_Phone],
+        ['otp', 'OTP Verification', S21_OTP],
+        ['forgot-password', 'Forgot Password', S19_ForgotPassword],
+      ],
+    },
+    {
+      id: 'profile',
+      title: '2 · Profile creation',
+      subtitle: 'Multi-step onboarding · identity → background → lifestyle → photos',
+      screens: [
+        ['name', 'Name & DOB', S03_Name],
+        ['gender', 'Gender · Looking for', S04_Gender],
+        ['us-location', 'U.S. Location', S05_USLocation],
+        ['india-origin', 'India Roots', S06_IndiaOrigin],
+        ['religion', 'Faith · Gothram', S07_Religion],
+        ['education', 'Education · Work', S08_Education],
+        ['visa', 'Visa Status', S09_Visa],
+        ['family', 'Family', S10_Family],
+        ['horoscope', 'Horoscope', S11_Horoscope],
+        ['diet', 'Diet · Lifestyle', S12_Diet],
+        ['photos', 'Photos', S13_Photos],
+        ['about', 'About · Voice', S14_About],
+        ['preferences', 'Partner Preferences', S15_Preferences],
+        ['verify', 'Verify · Done', S16_Verify],
+      ],
+    },
+    {
+      id: 'browse',
+      title: '3 · Browse & discover',
+      subtitle: 'Daily matches · profile detail · search & filters',
+      screens: [
+        ['matches', 'Matches Home', S17_Matches],
+        ['match-detail', 'Match Detail', S18_MatchDetail],
+        ['search', 'Search & Discovery', S22_Search],
+        ['filters', 'Filters', S23_Filters],
+      ],
+    },
+    {
+      id: 'messaging',
+      title: '4 · Messaging & calls',
+      subtitle: 'Inbox · 1:1 chat · audio/video calls',
+      screens: [
+        ['inbox', 'Messages · Inbox', S24_Inbox],
+        ['chat', 'Chat thread', S25_Chat],
+        ['call', 'Incoming call', S26_Call],
+      ],
+    },
+  ];
+
+  // Global screen counter so labels read 01..N across the whole flow
+  let counter = 0;
+
+  return (
+    <>
+      <DesignCanvas key={k}>
+        {flows.map((flow) => (
+          <DCSection key={flow.id} id={flow.id} title={flow.title} subtitle={flow.subtitle}>
+            {flow.screens.map(([id, label, S]) => {
+              counter += 1;
+              const num = String(counter).padStart(2, '0');
+              return (
+                <DCArtboard key={id} id={`${num}-${id}`}
+                  label={`${num} · ${label}`}
+                  width={402} height={874}>
+                  <div data-screen-label={`${num} ${label}`}
+                    style={{ width: 402, height: 874 }}>
+                    <IOSDevice width={402} height={874}>
+                      <S/>
+                    </IOSDevice>
+                  </div>
+                </DCArtboard>
+              );
+            })}
+          </DCSection>
+        ))}
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Theme">
+          <TweakSelect label="Color theme" value={t.theme}
+            options={[
+              { label: 'Jasmine white', value: 'jasmine' },
+              { label: 'Turmeric', value: 'turmeric' },
+              { label: 'Haldi (ceremonial yellow)', value: 'haldi' },
+              { label: 'Bumble yellow', value: 'bumble' },
+              { label: 'Wedding rose (cream + burgundy)', value: 'rose' },
+              { label: 'Cream + maroon', value: 'cream' },
+              { label: 'Modern stone', value: 'stone' },
+              { label: 'Pure white', value: 'white' },
+              { label: 'Coral sunset', value: 'coral' },
+              { label: 'Crimson (lavender · cream)', value: 'crimson' },
+              { label: 'Crimson · white', value: 'crimsonWhite' },
+              { label: 'Mandap cream (peach · burgundy)', value: 'mandap' },
+              { label: 'Mandap · white', value: 'mandapWhite' },
+            ]}
+            onChange={(v) => setTweak('theme', v)}/>
+          <TweakSelect label="Ink color" value={t.ink}
+            options={[
+              { label: 'Sandalwood (warm walnut)', value: 'sandalwood' },
+              { label: 'Maroon (deep wedding red)', value: 'maroon' },
+              { label: 'Indigo (temple blue)', value: 'indigo' },
+              { label: 'Forest (banana leaf)', value: 'forest' },
+              { label: 'Soft charcoal', value: 'charcoal' },
+            ]}
+            onChange={(v) => setTweak('ink', v)}/>
+          <TweakSelect label="Display font" value={t.displayFont}
+            options={[
+              { label: 'Instrument Serif', value: 'Instrument Serif' },
+              { label: 'Cormorant', value: 'Cormorant Garamond' },
+              { label: 'Crimson Pro', value: 'Crimson Pro' },
+              { label: 'Georgia', value: 'Georgia' },
+            ]}
+            onChange={(v) => setTweak('displayFont', v)}/>
+        </TweakSection>
+        <TweakSection label="Matches screen">
+          <TweakRadio label="Photo height" value={t.photoHeight}
+            options={[
+              { label: '320', value: 320 },
+              { label: '380', value: 380 },
+              { label: '408', value: 408 },
+              { label: '460', value: 460 },
+            ]}
+            onChange={(v) => setTweak('photoHeight', v)}/>
+        </TweakSection>
+        <TweakSection label="Cultural elements">
+          <TweakToggle label="Rice-grain motifs" value={t.showCulturalMotifs}
+            onChange={(v) => setTweak('showCulturalMotifs', v)}/>
+          <TweakToggle label="Telugu script accents" value={t.showTeluguScript}
+            onChange={(v) => setTweak('showTeluguScript', v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

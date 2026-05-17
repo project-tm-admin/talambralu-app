@@ -8,15 +8,19 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as elasticache from 'aws-cdk-lib/aws-elasticache';
 
 export class InfraStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
   public readonly cluster: ecs.Cluster;
   public readonly fargateService: ecs_patterns.ApplicationLoadBalancedFargateService;
-  public readonly database: rds.DatabaseInstance; // Changed from DatabaseCluster
+  public readonly database: rds.DatabaseInstance;
   public readonly mediaBucket: s3.Bucket;
   public readonly selfieQueue: sqs.Queue;
   public readonly incomeQueue: sqs.Queue;
+  public readonly redisSubnetGroup: elasticache.CfnSubnetGroup;
+  public readonly redisSecurityGroup: ec2.SecurityGroup;
+  public readonly redisCluster: elasticache.CfnCacheCluster;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -81,6 +85,37 @@ export class InfraStack extends cdk.Stack {
 
     // Allow Fargate to connect to RDS
     this.database.connections.allowDefaultPortFrom(this.fargateService.service.connections);
+
+    // Task 4.1: Redis WebSockets Infrastructure
+    this.redisSecurityGroup = new ec2.SecurityGroup(this, 'RedisSecurityGroup', {
+      vpc: this.vpc,
+      description: 'Security group for Redis Cluster',
+    });
+    this.redisSecurityGroup.addIngressRule(
+      this.fargateService.service.connections.securityGroups[0],
+      ec2.Port.tcp(6379),
+      'Allow inbound from Fargate'
+    );
+
+    this.redisSubnetGroup = new elasticache.CfnSubnetGroup(this, 'RedisSubnetGroup', {
+      description: 'Subnet group for Redis',
+      subnetIds: this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
+    });
+
+    this.redisCluster = new elasticache.CfnCacheCluster(this, 'TalambraluRedis', {
+      cacheNodeType: 'cache.t3.micro',
+      engine: 'redis',
+      numCacheNodes: 1,
+      clusterName: 'talambralu-redis',
+      vpcSecurityGroupIds: [this.redisSecurityGroup.securityGroupId],
+      cacheSubnetGroupName: this.redisSubnetGroup.ref,
+    });
+
+    // Pass Redis URL to container
+    this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
+      'REDIS_URL',
+      `redis://${this.redisCluster.attrRedisEndpointAddress}:${this.redisCluster.attrRedisEndpointPort}`
+    );
 
     // Task 5: S3 Storage Bucket with 14-day deletion lifecycle for verification docs
     this.mediaBucket = new s3.Bucket(this, 'TalambraluMediaBucket', {
