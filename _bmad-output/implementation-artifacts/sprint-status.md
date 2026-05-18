@@ -62,13 +62,14 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| 12 | `Story 5.1` | Stripe Webhook Infrastructure | `Story 1.2` | Small | `TODO` |
-| 13 | `Story 5.2` | Premium Subscription Gating | `Story 5.1` | Medium | `TODO` |
+| 12 | `Story 5.1` | RevenueCat Integration & Webhooks | `Story 1.2` | Medium | `TODO` |
+| 13 | `Story 5.2` | Native Paywall & Entitlement Gating | `Story 5.1` | Medium | `TODO` |
 | 14 | `Story 6.1` | GDPR Account Deletion Saga (S3/DB Cleanup) | `Story 2.1`, `4.2`| Large | `TODO` |
 | 15 | `Story 6.2` | Admin API via Read-Replica | `Story 1.1` | Small | `TODO` |
 
 **Sprint Checkpoint:**
-- [ ] Stripe webhook successfully updates a user's subscription tier.
+- [ ] RevenueCat webhook successfully updates a user's subscription tier.
+- [ ] Mobile app displays native offerings and processes sandbox purchases.
 - [ ] Free users are blocked from Premium routes.
 - [ ] A deleted profile cascades correctly and triggers S3 cleanup.
 - [ ] Admin endpoint successfully reads from the Aurora Replica.

@@ -131,25 +131,26 @@ This document decomposes the Talambralu Modular Monolith architecture into imple
 ---
 
 ## Epic 5: Monetization
-**Goal:** Implement the Stripe integration to support the Hybrid Subscription and Credits model.
+**Goal:** Implement RevenueCat and Native IAP integration to support the Hybrid Subscription and Credits model.
 
-### Story 5.1: Stripe Webhook Infrastructure
-**Description:** Set up a secure endpoint to receive and process Stripe webhooks.
+### Story 5.1: RevenueCat Integration & Webhooks
+**Description:** Integrate RevenueCat to handle cross-platform receipt validation and server-to-server notifications.
 **Acceptance Criteria:**
-- [ ] `POST /v1/webhooks/stripe` endpoint is created.
-- [ ] Webhook signatures are verified securely.
-- [ ] Unhandled events are logged and return 200 OK.
+- [ ] Backend endpoint `POST /v1/webhooks/revenuecat` is created and validates signatures.
+- [ ] RevenueCat project is configured with Apple/Google platform credentials.
+- [ ] Webhook handler updates `user.subscription_tier` based on `INITIAL_PURCHASE`, `RENEWAL`, and `CANCELLATION` events.
 **Verification:**
-- [ ] Integration test using Stripe CLI to simulate webhook delivery.
+- [ ] Integration test using RevenueCat sandbox events.
 
-### Story 5.2: Premium Subscription Gating
-**Description:** Gate specific features based on the user's active Stripe subscription.
+### Story 5.2: Native Paywall & Entitlement Gating
+**Description:** Implement native paywalls and gate premium features using the unified Entitlement Engine.
 **Acceptance Criteria:**
-- [ ] Profile model includes `subscription_tier` (FREE/PREMIUM).
-- [ ] `SubscriptionGuard` restricts access to premium endpoints (e.g., advanced search filters).
-- [ ] Webhook handler updates user tier on `checkout.session.completed` and `customer.subscription.deleted`.
+- [ ] Mobile app integrates RevenueCat SDK to fetch and display "Offerings".
+- [ ] `SubscriptionGuard` (NestJS) restricts access to premium endpoints based on the database `subscription_tier`.
+- [ ] Successful native purchase triggers an immediate entitlement update on the backend.
 **Verification:**
 - [ ] E2E test: Accessing a premium route as a free user returns 403 Forbidden.
+- [ ] Manual test: Completing a sandbox purchase unlocks premium features in real-time.
 
 ---
 

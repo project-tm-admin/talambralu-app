@@ -63,7 +63,7 @@ Talambralu is a premium matrimony platform specifically designed for the Telugu-
 - Amazon Chime for A/V calls (Premium only).
 - Ephemeral file sharing (signed S3 URLs).
 
-### 4.7 Subscription & Payments (Stripe)
+### 4.7 Subscription & Payments (Native IAP via RevenueCat)
 - **Hybrid Model:**
   - Free Tier: Basic profile, standard interests, Subsidized Matches (can chat if matched with Premium).
   - Premium: Unlocks chat initiation, advanced filters, monthly credits.

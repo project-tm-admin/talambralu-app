@@ -52,8 +52,8 @@ Talambralu is architected as a **Modular Monolith** deployed on AWS. This design
 - **Integration:** Amazon Chime SDK for A/V signaling.
 
 ### 3.6 Subscription Module
-- **Responsibility:** Payments, credits, and entitlement gating.
-- **Integration:** Stripe API & Webhooks.
+- Responsibility: Managing user entitlements, premium status, and receipt validation.
+- Integration: RevenueCat SDK (Client) & Webhooks (Server-to-Server). Native Apple App Store and Google Play Billing infrastructure.
 
 ---
 
