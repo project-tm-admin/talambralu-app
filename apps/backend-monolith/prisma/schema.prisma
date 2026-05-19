@@ -26,18 +26,18 @@ enum MatchStatus {
 }
 
 model Profile {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @unique @map("user_id")
-  fullName         String   @map("full_name")
-  dob              DateTime @db.Date
+  id               String                   @id @default(uuid()) @db.Uuid
+  userId           String                   @unique @map("user_id")
+  fullName         String                   @map("full_name")
+  dob              DateTime                 @db.Date
   gender           Gender
-  isFaceVerified   Boolean  @default(false) @map("is_face_verified")
-  incomeBracket    String?  @map("income_bracket")
-  isIncomeVerified Boolean  @default(false) @map("is_income_verified")
-  isWorkVerified   Boolean  @default(false) @map("is_work_verified")
+  isFaceVerified   Boolean                  @default(false) @map("is_face_verified")
+  incomeBracket    String?                  @map("income_bracket")
+  isIncomeVerified Boolean                  @default(false) @map("is_income_verified")
+  isWorkVerified   Boolean                  @default(false) @map("is_work_verified")
   searchVector     Unsupported("tsvector")? @map("search_vector")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
 
   @@map("profiles")
 }
@@ -65,4 +65,22 @@ model Message {
   match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
+model UserSubscription {
+  id                 String           @id @default(uuid()) @db.Uuid
+  userId             String           @unique @map("user_id") // Firebase UID
+  tier               SubscriptionTier @default(FREE)
+  lastEventId        String?          @map("last_event_id") // idempotency key
+  lastEventTimestamp DateTime?        @map("last_event_timestamp")
+  expiresAt          DateTime?        @map("expires_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  @@map("user_subscriptions")
 }
