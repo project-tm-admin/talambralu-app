@@ -86,8 +86,13 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('upserts FREE tier on CANCELLATION', async () => {
-      mockTx.userSubscription.findUnique.mockResolvedValue(null);
+    it('upserts FREE tier on CANCELLATION when subscription exists', async () => {
+      mockTx.userSubscription.findUnique.mockResolvedValue({
+        userId: 'firebase-uid-1',
+        tier: SubscriptionTier.PREMIUM,
+        lastEventId: 'evt-000',
+        lastEventTimestamp: new Date(Date.now() - 10000),
+      });
       mockTx.userSubscription.upsert.mockResolvedValue({});
 
       await service.processWebhookEvent(baseEvent({ type: 'CANCELLATION' }));
@@ -106,8 +111,21 @@ describe('SubscriptionService', () => {
       );
     });
 
-    it('upserts FREE tier on EXPIRATION', async () => {
+    it('skips DB write on CANCELLATION when no subscription record exists', async () => {
       mockTx.userSubscription.findUnique.mockResolvedValue(null);
+
+      await service.processWebhookEvent(baseEvent({ type: 'CANCELLATION' }));
+
+      expect(mockTx.userSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it('upserts FREE tier on EXPIRATION when subscription exists', async () => {
+      mockTx.userSubscription.findUnique.mockResolvedValue({
+        userId: 'firebase-uid-1',
+        tier: SubscriptionTier.PREMIUM,
+        lastEventId: 'evt-000',
+        lastEventTimestamp: new Date(Date.now() - 10000),
+      });
       mockTx.userSubscription.upsert.mockResolvedValue({});
 
       await service.processWebhookEvent(baseEvent({ type: 'EXPIRATION' }));
@@ -155,16 +173,39 @@ describe('SubscriptionService', () => {
       expect(mockTx.userSubscription.upsert).not.toHaveBeenCalled();
     });
 
-    it('skips older events (sequence protection)', async () => {
+    it('skips older events using event_timestamp_ms (sequence protection)', async () => {
       mockTx.userSubscription.findUnique.mockResolvedValue({
         userId: 'firebase-uid-1',
         tier: SubscriptionTier.PREMIUM,
         lastEventId: 'evt-001',
-        lastEventTimestamp: new Date(Date.now() + 10000), // Existing event is from the future relative to the new event
+        lastEventTimestamp: new Date(Date.now() + 10000),
       });
 
       await service.processWebhookEvent(
-        baseEvent({ id: 'evt-002', type: 'CANCELLATION', purchased_at_ms: Date.now() })
+        baseEvent({
+          id: 'evt-002',
+          type: 'RENEWAL',
+          event_timestamp_ms: Date.now(),
+        }),
+      );
+
+      expect(mockTx.userSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it('falls back to purchased_at_ms for sequence when event_timestamp_ms absent', async () => {
+      mockTx.userSubscription.findUnique.mockResolvedValue({
+        userId: 'firebase-uid-1',
+        tier: SubscriptionTier.PREMIUM,
+        lastEventId: 'evt-001',
+        lastEventTimestamp: new Date(Date.now() + 10000),
+      });
+
+      await service.processWebhookEvent(
+        baseEvent({
+          id: 'evt-002',
+          type: 'RENEWAL',
+          purchased_at_ms: Date.now(),
+        }),
       );
 
       expect(mockTx.userSubscription.upsert).not.toHaveBeenCalled();
@@ -175,6 +216,7 @@ describe('SubscriptionService', () => {
     it('returns PREMIUM when subscription exists with PREMIUM tier', async () => {
       mockPrisma.userSubscription.findUnique.mockResolvedValue({
         tier: SubscriptionTier.PREMIUM,
+        expiresAt: null,
       });
 
       const tier = await service.getTierForUser('firebase-uid-1');
@@ -193,11 +235,34 @@ describe('SubscriptionService', () => {
     it('returns FREE for a user with FREE tier', async () => {
       mockPrisma.userSubscription.findUnique.mockResolvedValue({
         tier: SubscriptionTier.FREE,
+        expiresAt: null,
       });
 
       const tier = await service.getTierForUser('firebase-uid-1');
 
       expect(tier).toBe(SubscriptionTier.FREE);
+    });
+
+    it('returns FREE when PREMIUM subscription has expired (expiresAt in past)', async () => {
+      mockPrisma.userSubscription.findUnique.mockResolvedValue({
+        tier: SubscriptionTier.PREMIUM,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      const tier = await service.getTierForUser('firebase-uid-1');
+
+      expect(tier).toBe(SubscriptionTier.FREE);
+    });
+
+    it('returns PREMIUM when subscription has a future expiresAt', async () => {
+      mockPrisma.userSubscription.findUnique.mockResolvedValue({
+        tier: SubscriptionTier.PREMIUM,
+        expiresAt: new Date(Date.now() + 86400000),
+      });
+
+      const tier = await service.getTierForUser('firebase-uid-1');
+
+      expect(tier).toBe(SubscriptionTier.PREMIUM);
     });
   });
 });

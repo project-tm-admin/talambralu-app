@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsDefined,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -24,21 +25,25 @@ export class RevenueCatEvent {
   @IsNotEmpty()
   original_app_user_id: string;
 
-  @IsNumber()
+  @IsNumber({ allowNaN: false })
+  @IsOptional()
+  event_timestamp_ms?: number;
+
+  @IsNumber({ allowNaN: false })
   @IsOptional()
   expiration_at_ms?: number;
 
-  @IsNumber()
+  @IsNumber({ allowNaN: false })
   @IsOptional()
   purchased_at_ms?: number;
 
   @IsString()
-  @IsNotEmpty()
-  product_id: string;
+  @IsOptional()
+  product_id?: string;
 
   @IsString()
-  @IsNotEmpty()
-  store: string;
+  @IsOptional()
+  store?: string;
 }
 
 export class RevenueCatWebhookDto {
@@ -46,6 +51,7 @@ export class RevenueCatWebhookDto {
   @IsNotEmpty()
   api_version: string;
 
+  @IsDefined()
   @ValidateNested()
   @Type(() => RevenueCatEvent)
   event: RevenueCatEvent;

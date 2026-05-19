@@ -15,7 +15,6 @@ export class SubscriptionService {
   async processWebhookEvent(event: RevenueCatEvent): Promise<void> {
     const userId = event.app_user_id;
 
-    // Use transaction to prevent concurrency race conditions
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.userSubscription.findUnique({
         where: { userId },
@@ -27,10 +26,13 @@ export class SubscriptionService {
         return;
       }
 
-      const eventTimeMs = event.purchased_at_ms ?? Date.now();
+      // Use event_timestamp_ms (dispatch time) as primary sequence anchor;
+      // fall back to purchased_at_ms for older payload shapes.
+      const eventTimeMs =
+        event.event_timestamp_ms ?? event.purchased_at_ms ?? Date.now();
       const eventDate = new Date(eventTimeMs);
 
-      // 2. Sequence check (Out-of-order webhook protection)
+      // 2. Sequence check (out-of-order webhook protection)
       if (
         existing?.lastEventTimestamp &&
         !isNaN(eventDate.getTime()) &&
@@ -73,6 +75,14 @@ export class SubscriptionService {
           },
         });
       } else if (DOWNGRADE_EVENTS.has(event.type)) {
+        // Only downgrade an existing subscription; never create a FREE row
+        // for a user who was never premium — that would pollute the table.
+        if (!existing) {
+          this.logger.debug(
+            `Skipping downgrade event ${event.id} — no subscription record for user ${userId}`,
+          );
+          return;
+        }
         await tx.userSubscription.upsert({
           where: { userId },
           create: {
@@ -89,6 +99,10 @@ export class SubscriptionService {
             expiresAt: null,
           },
         });
+      } else {
+        this.logger.warn(
+          `Unhandled event type ${event.type} for user ${userId} — no DB write performed`,
+        );
       }
     });
   }
@@ -97,6 +111,10 @@ export class SubscriptionService {
     const sub = await this.prisma.userSubscription.findUnique({
       where: { userId },
     });
-    return sub?.tier ?? SubscriptionTier.FREE;
+    if (!sub) return SubscriptionTier.FREE;
+    // Safety net: treat as FREE if the subscription has expired locally,
+    // even if the EXPIRATION webhook hasn't arrived yet.
+    if (sub.expiresAt && sub.expiresAt < new Date()) return SubscriptionTier.FREE;
+    return sub.tier;
   }
 }
