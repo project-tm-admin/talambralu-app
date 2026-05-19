@@ -21,7 +21,7 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 - [ ] A user can successfully register via Firebase and retrieve their profile via the API.
 
 ---
-*Last Updated: 2026-05-19*
+*Last Updated: 2026-05-19 (Story 5.2 code review complete)*
 
 ---
 
@@ -63,7 +63,7 @@ This document outlines the sequenced implementation plan for the Talambralu plat
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 12 | `Story 5.1` | RevenueCat Integration & Webhooks | `Story 1.2` | Medium | `DONE` |
-| 13 | `Story 5.2` | Native Paywall & Entitlement Gating | `Story 5.1` | Medium | `TODO` |
+| 13 | `Story 5.2` | Native Paywall & Entitlement Gating | `Story 5.1` | Medium | `DONE` |
 | 14 | `Story 6.1` | GDPR Account Deletion Saga (S3/DB Cleanup) | `Story 2.1`, `4.2`| Large | `TODO` |
 | 15 | `Story 6.2` | Admin API via Read-Replica | `Story 1.1` | Small | `TODO` |
 

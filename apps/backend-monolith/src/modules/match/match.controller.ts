@@ -1,13 +1,26 @@
-import { Controller, Post, Get, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  ParseUUIDPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { MatchService } from './match.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateInterestDto } from './dto/create-interest.dto';
+import { SubscriptionGuard } from '../subscription/guards/subscription.guard';
+import { RequireTier } from '../subscription/decorators/require-tier.decorator';
+import { SubscriptionTier } from '@prisma/client';
 
 @Controller('v1')
 export class MatchController {
   constructor(private readonly matchService: MatchService) {}
 
   @Post('interests')
+  @UseGuards(SubscriptionGuard)
+  @RequireTier(SubscriptionTier.PREMIUM)
   async createInterest(
     @CurrentUser() user: { uid: string },
     @Body() dto: CreateInterestDto,
@@ -21,6 +34,8 @@ export class MatchController {
   }
 
   @Post('interests/:id/accept')
+  @UseGuards(SubscriptionGuard)
+  @RequireTier(SubscriptionTier.PREMIUM)
   async acceptInterest(
     @CurrentUser() user: { uid: string },
     @Param('id', ParseUUIDPipe) id: string,
@@ -29,6 +44,8 @@ export class MatchController {
   }
 
   @Post('interests/:id/decline')
+  @UseGuards(SubscriptionGuard)
+  @RequireTier(SubscriptionTier.PREMIUM)
   async declineInterest(
     @CurrentUser() user: { uid: string },
     @Param('id', ParseUUIDPipe) id: string,

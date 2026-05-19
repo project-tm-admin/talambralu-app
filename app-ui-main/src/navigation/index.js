@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import Purchases from 'react-native-purchases';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,6 +47,9 @@ import FiltersScreen from '../screens/browse/FiltersScreen';
 import InboxScreen from '../screens/messaging/InboxScreen';
 import ChatScreen from '../screens/messaging/ChatScreen';
 import CallScreen from '../screens/messaging/CallScreen';
+
+// Monetization
+import PaywallScreen from '../screens/paywall/PaywallScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -154,6 +158,11 @@ export default function Navigation() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
+        try {
+          await Purchases.logIn(user.uid);
+        } catch (e) {
+          console.error('RevenueCat logIn failed', e);
+        }
         await checkProfile();
       } else {
         setHasProfile(false);
@@ -245,6 +254,7 @@ export default function Navigation() {
             <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Verify" component={VerifyScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
           </>
         ) : (
           <>
@@ -255,6 +265,7 @@ export default function Navigation() {
             <Stack.Screen name="Call" component={CallScreen} />
             <Stack.Screen name="Verifications" component={VerificationsScreen} />
             <Stack.Screen name="ProfileVisitors" component={ProfileVisitorsScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
           </>
         )}
       </Stack.Navigator>
@@ -301,3 +312,5 @@ const tabStyles = StyleSheet.create({
     backgroundColor: T.accent,
   },
 });
+
+

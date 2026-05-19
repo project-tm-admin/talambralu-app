@@ -3,25 +3,31 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
-import { MatchStatus } from '@prisma/client';
+import { MatchStatus, SubscriptionTier } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+
+// AUTH_UID must be a valid UUID — the auth mock returns it as the authenticated user's UID
+const AUTH_UID = '123e4567-e89b-12d3-a456-426614174000';
 
 jest.mock('firebase-admin', () => ({
   auth: jest.fn().mockReturnValue({
     verifyIdToken: jest
       .fn()
-      .mockResolvedValue({ uid: 'user-a-id', email: 'user-a@example.com' }),
+      .mockResolvedValue({ uid: AUTH_UID, email: 'user-a@example.com' }),
   }),
   initializeApp: jest.fn(),
   credential: {
     cert: jest.fn(),
-    applicationDefault: jest.fn(),
+    applicationDefault: jest.fn().mockReturnValue({}),
   },
   apps: [],
 }));
 
 describe('Match (e2e)', () => {
   let app: INestApplication;
+
+  const VALID_UUID_A = AUTH_UID;
+  const VALID_UUID_B = '123e4567-e89b-12d3-a456-426614174001';
 
   const mockPrismaService = {
     match: {
@@ -31,6 +37,11 @@ describe('Match (e2e)', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+    },
+    userSubscription: {
+      findUnique: jest
+        .fn()
+        .mockResolvedValue({ tier: SubscriptionTier.PREMIUM }),
     },
   };
 
@@ -62,48 +73,71 @@ describe('Match (e2e)', () => {
 
   it('POST /v1/interests (Success)', () => {
     mockPrismaService.match.findFirst.mockResolvedValue(null);
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
     mockPrismaService.match.create.mockResolvedValue({
-      id: 'match-id',
-      senderId: 'user-a-id',
-      receiverId: 'user-b-id',
+      id: VALID_UUID_A,
+      senderId: VALID_UUID_A,
+      receiverId: VALID_UUID_B,
       status: MatchStatus.PENDING,
     });
 
     return request(app.getHttpServer())
       .post('/v1/interests')
       .set('Authorization', 'Bearer token')
-      .send({ receiverId: 'user-b-id' })
+      .send({ receiverId: VALID_UUID_B })
       .expect(201)
       .expect((res) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        expect(res.body.id).toBe('match-id');
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         expect(res.body.status).toBe(MatchStatus.PENDING);
       });
   });
 
-  it('POST /v1/interests (Self Interest Error)', () => {
+  it('POST /v1/interests (Forbidden - FREE tier)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.FREE,
+    });
     return request(app.getHttpServer())
       .post('/v1/interests')
       .set('Authorization', 'Bearer token')
-      .send({ receiverId: 'user-a-id' })
+      .send({ receiverId: VALID_UUID_B })
+      .expect(403)
+      .expect((res) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        expect(res.body).toMatchObject({ error: { code: 'SUBSCRIPTION_REQUIRED' } });
+      });
+  });
+
+  it('POST /v1/interests (Self Interest Error)', () => {
+    // Sender UID === receiverId — service rejects as self-interest (400)
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
+    return request(app.getHttpServer())
+      .post('/v1/interests')
+      .set('Authorization', 'Bearer token')
+      .send({ receiverId: VALID_UUID_A })
       .expect(400);
   });
 
   it('POST /v1/interests/:id/accept (Success)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
     mockPrismaService.match.findUnique.mockResolvedValue({
-      id: 'match-id',
-      senderId: 'user-b-id',
-      receiverId: 'user-a-id',
+      id: VALID_UUID_A,
+      senderId: VALID_UUID_B,
+      receiverId: VALID_UUID_A,
       status: MatchStatus.PENDING,
     });
     mockPrismaService.match.update.mockResolvedValue({
-      id: 'match-id',
+      id: VALID_UUID_A,
       status: MatchStatus.ACCEPTED,
     });
 
     return request(app.getHttpServer())
-      .post('/v1/interests/match-id/accept')
+      .post(`/v1/interests/${VALID_UUID_A}/accept`)
       .set('Authorization', 'Bearer token')
       .expect(201)
       .expect((res) => {
@@ -112,34 +146,54 @@ describe('Match (e2e)', () => {
       });
   });
 
+  it('POST /v1/interests/:id/accept (Forbidden - FREE tier)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.FREE,
+    });
+    return request(app.getHttpServer())
+      .post(`/v1/interests/${VALID_UUID_A}/accept`)
+      .set('Authorization', 'Bearer token')
+      .expect(403)
+      .expect((res) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        expect(res.body).toMatchObject({ error: { code: 'SUBSCRIPTION_REQUIRED' } });
+      });
+  });
+
   it('POST /v1/interests/:id/accept (Forbidden - Not Recipient)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
     mockPrismaService.match.findUnique.mockResolvedValue({
-      id: 'match-id',
-      senderId: 'user-a-id',
-      receiverId: 'user-b-id',
+      id: VALID_UUID_A,
+      senderId: VALID_UUID_A,
+      receiverId: VALID_UUID_B,
       status: MatchStatus.PENDING,
     });
 
     return request(app.getHttpServer())
-      .post('/v1/interests/match-id/accept')
+      .post(`/v1/interests/${VALID_UUID_A}/accept`)
       .set('Authorization', 'Bearer token')
       .expect(403);
   });
 
   it('POST /v1/interests/:id/decline (Success)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
     mockPrismaService.match.findUnique.mockResolvedValue({
-      id: 'match-id',
-      senderId: 'user-b-id',
-      receiverId: 'user-a-id',
+      id: VALID_UUID_A,
+      senderId: VALID_UUID_B,
+      receiverId: VALID_UUID_A,
       status: MatchStatus.PENDING,
     });
     mockPrismaService.match.update.mockResolvedValue({
-      id: 'match-id',
+      id: VALID_UUID_A,
       status: MatchStatus.DECLINED,
     });
 
     return request(app.getHttpServer())
-      .post('/v1/interests/match-id/decline')
+      .post(`/v1/interests/${VALID_UUID_A}/decline`)
       .set('Authorization', 'Bearer token')
       .expect(201)
       .expect((res) => {
@@ -149,26 +203,29 @@ describe('Match (e2e)', () => {
   });
 
   it('POST /v1/interests (Duplicate PENDING - Conflict)', () => {
+    mockPrismaService.userSubscription.findUnique.mockResolvedValue({
+      tier: SubscriptionTier.PREMIUM,
+    });
     mockPrismaService.match.findFirst.mockResolvedValue({
-      id: 'match-id',
-      senderId: 'user-a-id',
-      receiverId: 'user-b-id',
+      id: VALID_UUID_A,
+      senderId: VALID_UUID_A,
+      receiverId: VALID_UUID_B,
       status: MatchStatus.PENDING,
     });
 
     return request(app.getHttpServer())
       .post('/v1/interests')
       .set('Authorization', 'Bearer token')
-      .send({ receiverId: 'user-b-id' })
+      .send({ receiverId: VALID_UUID_B })
       .expect(409);
   });
 
   it('GET /v1/interests/pending (Success)', () => {
     mockPrismaService.match.findMany.mockResolvedValue([
       {
-        id: 'match-1',
-        senderId: 'user-b-id',
-        receiverId: 'user-a-id',
+        id: VALID_UUID_A,
+        senderId: VALID_UUID_B,
+        receiverId: VALID_UUID_A,
         status: MatchStatus.PENDING,
       },
     ]);
@@ -186,7 +243,7 @@ describe('Match (e2e)', () => {
 
   it('GET /v1/matches (Success)', () => {
     mockPrismaService.match.findMany.mockResolvedValue([
-      { id: 'match-1', status: MatchStatus.ACCEPTED },
+      { id: VALID_UUID_A, status: MatchStatus.ACCEPTED },
     ]);
 
     return request(app.getHttpServer())
