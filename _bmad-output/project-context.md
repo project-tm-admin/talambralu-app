@@ -45,7 +45,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 *   **Error Responses**: Consistent JSON error format required: `{ "error": { "code": "...", "message": "...", "details": {...} } }`.
 
 ### Development Workflow Rules
-*   **BMAD Sequence**: Implementation is sequenced via BMAD Sprints (Sprint 1-4). Follow the dependency graph in `sprint-status.md`.
+*   **BMAD Sequence**: Implementation is sequenced into two distinct phases. Phase 1 (Backend Monolith & Infra) is complete — refer to `sprint-status.md` for historical context. Phase 2 (Frontend React Native Integration) is currently active — refer to `frontend-sprint-status.md` for the active dependency graph and next steps.
 *   **No Direct DB Commits in Services**: Ensure data sovereignty; a module only writes to its own tables.
 *   **AWS Free Tier Constraint**: RDS is temporarily downgraded to `t3.micro`. Must plan for Aurora Serverless v2 upgrade before launch.
 

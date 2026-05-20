@@ -1,4 +1,7 @@
-# Sprint Plan: Talambralu Frontend Integration
+# Sprint Plan: Talambralu Frontend Integration (Active)
+
+> **Note:** This document outlines the active frontend integration phase. It depends on the backend infrastructure and API which is already **100% complete**.
+> For historical backend implementation details, please see [`sprint-status.md`](./sprint-status.md).
 
 ## Overview
 This document outlines the sequenced implementation plan for integrating the React Native (Expo) frontend with the existing NestJS backend architecture.

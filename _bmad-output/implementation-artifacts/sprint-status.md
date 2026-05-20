@@ -1,4 +1,7 @@
-# Sprint Plan: Talambralu MVP
+# Sprint Plan: Talambralu MVP (Backend - Completed)
+
+> **Note:** This document outlines the backend infrastructure and API implementation, which is now **100% complete**. 
+> For the active frontend integration phase, please see [`frontend-sprint-status.md`](./frontend-sprint-status.md).
 
 ## Overview
 This document outlines the sequenced implementation plan for the Talambralu platform. The implementation is broken into four distinct Sprints, designed to deliver verifiable, working slices of the architecture from the ground up.
