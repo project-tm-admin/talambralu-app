@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
+import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
 import { Gender } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
@@ -70,6 +71,8 @@ describe('Discovery (e2e)', () => {
       .useValue(mockPrismaService)
       .overrideProvider(ConfigService)
       .useValue(mockConfigService)
+      .overrideProvider(PrismaReplicaService)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();

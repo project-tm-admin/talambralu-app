@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
+import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
 
@@ -47,6 +48,8 @@ describe('Upload (e2e)', () => {
           return 'dummy'; // For Firebase config keys
         }),
       })
+      .overrideProvider(PrismaReplicaService)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();

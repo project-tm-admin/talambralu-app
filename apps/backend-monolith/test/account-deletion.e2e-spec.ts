@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
+import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
 import * as admin from 'firebase-admin';
 
 // Mock Firebase Admin
@@ -59,6 +60,8 @@ describe('Account Deletion (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
+      .overrideProvider(PrismaReplicaService)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();

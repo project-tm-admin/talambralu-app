@@ -35,6 +35,7 @@ model Profile {
   incomeBracket    String?                  @map("income_bracket")
   isIncomeVerified Boolean                  @default(false) @map("is_income_verified")
   isWorkVerified   Boolean                  @default(false) @map("is_work_verified")
+  isAdmin          Boolean                  @default(false) @map("is_admin")
   searchVector     Unsupported("tsvector")? @map("search_vector")
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
@@ -64,7 +65,7 @@ model Match {
 
 model Message {
   id        String   @id @default(uuid()) @db.Uuid
-  matchId   String   @db.Uuid @map("match_id")
+  matchId   String   @map("match_id") @db.Uuid
   senderId  String   @map("sender_id") // Firebase UID — cascades via Match (Profile → Match → Message), no direct FK needed
   content   String
   createdAt DateTime @default(now()) @map("created_at")

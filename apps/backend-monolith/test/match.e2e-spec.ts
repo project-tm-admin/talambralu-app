@@ -3,17 +3,15 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
+import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
 import { MatchStatus, SubscriptionTier } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-
-// AUTH_UID must be a valid UUID — the auth mock returns it as the authenticated user's UID
-const AUTH_UID = '123e4567-e89b-12d3-a456-426614174000';
 
 jest.mock('firebase-admin', () => ({
   auth: jest.fn().mockReturnValue({
     verifyIdToken: jest
       .fn()
-      .mockResolvedValue({ uid: AUTH_UID, email: 'user-a@example.com' }),
+      .mockResolvedValue({ uid: '123e4567-e89b-12d3-a456-426614174000', email: 'user-a@example.com' }),
   }),
   initializeApp: jest.fn(),
   credential: {
@@ -22,6 +20,8 @@ jest.mock('firebase-admin', () => ({
   },
   apps: [],
 }));
+
+const AUTH_UID = '123e4567-e89b-12d3-a456-426614174000';
 
 describe('Match (e2e)', () => {
   let app: INestApplication;
@@ -64,6 +64,8 @@ describe('Match (e2e)', () => {
       .useValue(mockPrismaService)
       .overrideProvider(ConfigService)
       .useValue(mockConfigService)
+      .overrideProvider(PrismaReplicaService)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();

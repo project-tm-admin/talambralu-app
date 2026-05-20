@@ -4,6 +4,7 @@ import { SubscriptionTier } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
+import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
 
 // Provide a default mocked credential so tests don't fail trying to reach AWS metadata
 jest.mock('firebase-admin', () => ({
@@ -51,6 +52,8 @@ describe('Subscription (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrisma)
+      .overrideProvider(PrismaReplicaService)
+      .useValue({})
       .compile();
 
     app = moduleFixture.createNestApplication();
