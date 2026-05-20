@@ -65,7 +65,7 @@ model Match {
 model Message {
   id        String   @id @default(uuid()) @db.Uuid
   matchId   String   @db.Uuid @map("match_id")
-  senderId  String   @map("sender_id")
+  senderId  String   @map("sender_id") // Firebase UID — cascades via Match (Profile → Match → Message), no direct FK needed
   content   String
   createdAt DateTime @default(now()) @map("created_at")
 

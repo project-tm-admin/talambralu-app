@@ -3,14 +3,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
-import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 import * as admin from 'firebase-admin';
-import { CleanupService } from './../src/modules/cleanup/cleanup.service';
 
 // Mock Firebase Admin
 jest.mock('firebase-admin', () => ({
   auth: jest.fn().mockReturnValue({
-    verifyIdToken: jest.fn().mockResolvedValue({ uid: 'test-user-id', email: 'test@example.com' }),
+    verifyIdToken: jest
+      .fn()
+      .mockResolvedValue({ uid: 'test-user-id', email: 'test@example.com' }),
     deleteUser: jest.fn().mockResolvedValue(undefined),
   }),
   initializeApp: jest.fn(),
@@ -21,13 +21,13 @@ jest.mock('firebase-admin', () => ({
   apps: [],
 }));
 
-// Mock AWS SQS
+// Expose the send mock so we can assert it was called — not just the constructor
+let sqsSendMock: jest.Mock;
 jest.mock('@aws-sdk/client-sqs', () => {
-  const mockSend = jest.fn().mockResolvedValue({ MessageId: 'test-message-id' });
+  const send = jest.fn().mockResolvedValue({ MessageId: 'test-message-id' });
+  sqsSendMock = send;
   return {
-    SQSClient: jest.fn().mockImplementation(() => ({
-      send: mockSend,
-    })),
+    SQSClient: jest.fn().mockImplementation(() => ({ send })),
     SendMessageCommand: jest.fn().mockImplementation((args) => args),
     ReceiveMessageCommand: jest.fn().mockImplementation((args) => args),
     DeleteMessageCommand: jest.fn().mockImplementation((args) => args),
@@ -47,7 +47,10 @@ describe('Account Deletion (e2e)', () => {
   };
 
   beforeEach(async () => {
-    // Set required environment variables for the test
+    jest.clearAllMocks();
+    sqsSendMock.mockResolvedValue({ MessageId: 'test-message-id' });
+    mockPrismaService.profile.delete.mockResolvedValue({ userId: mockUser.uid });
+
     process.env.AWS_REGION = 'us-east-1';
     process.env.AWS_SQS_CLEANUP_QUEUE_URL = 'http://localhost/cleanup-queue';
 
@@ -56,8 +59,6 @@ describe('Account Deletion (e2e)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(mockPrismaService)
-      .overrideProvider(CleanupService)
-      .useValue({ onModuleInit: jest.fn() }) // Prevent polling
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -65,30 +66,48 @@ describe('Account Deletion (e2e)', () => {
     await app.init();
   });
 
-  it('DELETE /v1/profiles/me (Success)', async () => {
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('DELETE /v1/profiles/me returns 200 and cleans up account', async () => {
     const response = await request(app.getHttpServer())
       .delete('/v1/profiles/me')
       .set('Authorization', 'Bearer dummy-token')
       .expect(200);
 
     expect(response.body).toEqual({ success: true });
-    
-    // Verify Prisma delete was called
+
+    // DB delete was called
     expect(mockPrismaService.profile.delete).toHaveBeenCalledWith({
       where: { userId: mockUser.uid },
     });
 
-    // Verify Firebase delete was called (via AuthService which uses admin.auth())
+    // Firebase delete was called
     expect(admin.auth().deleteUser).toHaveBeenCalledWith(mockUser.uid);
 
-    // Verify SQS message was published
-    expect(SendMessageCommand).toHaveBeenCalledWith(expect.objectContaining({
-      QueueUrl: 'http://localhost/cleanup-queue',
-      MessageBody: JSON.stringify({ userId: mockUser.uid }),
-    }));
+    // SQS send was actually called (not just the constructor)
+    expect(sqsSendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        QueueUrl: 'http://localhost/cleanup-queue',
+        MessageBody: JSON.stringify({ userId: mockUser.uid }),
+      }),
+    );
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('DELETE /v1/profiles/me returns 404 when profile does not exist', async () => {
+    const { Prisma } = await import('@prisma/client');
+    mockPrismaService.profile.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+        meta: {},
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .delete('/v1/profiles/me')
+      .set('Authorization', 'Bearer dummy-token')
+      .expect(404);
   });
 });

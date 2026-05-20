@@ -1,4 +1,11 @@
-import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  OnModuleInit,
+  InternalServerErrorException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
 import { DiscoveryQueryDto } from './dto/discovery-query.dto';
@@ -9,6 +16,7 @@ import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class ProfileService implements OnModuleInit {
+  private readonly logger = new Logger(ProfileService.name);
   private sqsClient: SQSClient;
   private cleanupQueueUrl: string | undefined;
 
@@ -125,26 +133,40 @@ export class ProfileService implements OnModuleInit {
   }
 
   async deleteAccount(userId: string) {
-    // 1. Publish SQS message for S3 cleanup
-    if (this.cleanupQueueUrl) {
-      const command = new SendMessageCommand({
-        QueueUrl: this.cleanupQueueUrl,
-        MessageBody: JSON.stringify({ userId }),
-      });
-      await this.sqsClient.send(command);
+    if (!this.cleanupQueueUrl) {
+      throw new InternalServerErrorException(
+        'Account deletion is unavailable: cleanup queue is not configured',
+      );
     }
 
-    // 2. Delete from database (cascades automatically)
-    await this.prisma.profile.delete({
-      where: { userId },
-    });
+    // 1. Publish SQS message for S3 cleanup before DB delete (per spec) so the
+    //    cleanup event is not lost if the DB delete succeeds but SQS publish fails.
+    await this.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: this.cleanupQueueUrl,
+        MessageBody: JSON.stringify({ userId }),
+      }),
+    );
 
-    // 3. Delete from Firebase Auth
+    // 2. Delete from database (cascades to Match, Message, UserSubscription)
+    try {
+      await this.prisma.profile.delete({ where: { userId } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Profile not found');
+      }
+      throw error;
+    }
+
+    // 3. Delete from Firebase Auth — log and continue if this fails; the DB
+    //    record is already gone so the account cannot be re-authenticated.
     try {
       await this.authService.deleteUser(userId);
     } catch (error) {
-      // If user is already deleted or not found in Firebase, we should log and continue
-      console.error(`Error deleting Firebase user ${userId}:`, error);
+      this.logger.error(`Failed to delete Firebase user ${userId}:`, error);
     }
 
     return { success: true };

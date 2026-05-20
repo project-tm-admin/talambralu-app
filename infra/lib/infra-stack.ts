@@ -195,12 +195,13 @@ export class InfraStack extends cdk.Stack {
     });
 
     // Story 6.1: SQS Queue for account cleanup processing
+    // Visibility timeout is 900s (15 min) to allow full S3 pagination for large accounts
     this.cleanupQueue = new sqs.Queue(this, 'CleanupProcessingQueue', {
-      visibilityTimeout: cdk.Duration.seconds(300),
+      visibilityTimeout: cdk.Duration.seconds(900),
       deadLetterQueue: {
         maxReceiveCount: 3,
         queue: cleanupDlq,
-      }
+      },
     });
 
     // Grant Fargate task permissions to read from SQS
@@ -224,12 +225,26 @@ export class InfraStack extends cdk.Stack {
       })
     );
 
+    // s3:ListBucket scoped to cleanup prefixes only
     this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:DeleteObject', 's3:ListBucket'],
+        actions: ['s3:ListBucket'],
+        resources: [this.mediaBucket.bucketArn],
+        conditions: {
+          StringLike: {
+            's3:prefix': ['profile-photos/*', 'verification-docs/*'],
+          },
+        },
+      })
+    );
+
+    // s3:DeleteObject scoped to the two cleanup prefixes
+    this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:DeleteObject'],
         resources: [
-          this.mediaBucket.bucketArn,
-          this.mediaBucket.arnForObjects('*'),
+          this.mediaBucket.arnForObjects('profile-photos/*'),
+          this.mediaBucket.arnForObjects('verification-docs/*'),
         ],
       })
     );
@@ -247,5 +262,5 @@ export class InfraStack extends cdk.Stack {
       'AWS_SQS_CLEANUP_QUEUE_URL',
       this.cleanupQueue.queueUrl
     );
-    }
-    }
+  }
+}
