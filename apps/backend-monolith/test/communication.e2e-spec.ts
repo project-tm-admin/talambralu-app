@@ -76,7 +76,12 @@ describe('Communication (e2e)', () => {
       });
 
       mockPrismaService.message.findMany.mockResolvedValue([
-        { id: 'msg-1', content: 'hello', senderId: 'user-a-id', createdAt: new Date() },
+        {
+          id: 'msg-1',
+          content: 'hello',
+          senderId: 'user-a-id',
+          createdAt: new Date(),
+        },
       ]);
 
       return request(app.getHttpServer())

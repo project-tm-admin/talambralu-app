@@ -70,8 +70,8 @@ describe('CommunicationGateway', () => {
           secure: false,
           issued: 0,
           url: '',
-          query: {}
-        } as any,
+          query: {},
+        },
         disconnect: jest.fn(),
         data: {},
       };
@@ -84,21 +84,29 @@ describe('CommunicationGateway', () => {
 
     it('should disconnect if token is invalid', async () => {
       client.handshake.auth.token = 'invalid-token';
-      mockFirebaseApp.auth().verifyIdToken.mockRejectedValue(new Error('Invalid token'));
+      mockFirebaseApp
+        .auth()
+        .verifyIdToken.mockRejectedValue(new Error('Invalid token'));
 
       await gateway.handleConnection(client as Socket);
 
-      expect(mockFirebaseApp.auth().verifyIdToken).toHaveBeenCalledWith('invalid-token');
+      expect(mockFirebaseApp.auth().verifyIdToken).toHaveBeenCalledWith(
+        'invalid-token',
+      );
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
 
     it('should allow connection and set userId if token is valid', async () => {
       client.handshake.auth.token = 'Bearer valid-token';
-      mockFirebaseApp.auth().verifyIdToken.mockResolvedValue({ uid: 'test-user-id' });
+      mockFirebaseApp
+        .auth()
+        .verifyIdToken.mockResolvedValue({ uid: 'test-user-id' });
 
       await gateway.handleConnection(client as Socket);
 
-      expect(mockFirebaseApp.auth().verifyIdToken).toHaveBeenCalledWith('valid-token');
+      expect(mockFirebaseApp.auth().verifyIdToken).toHaveBeenCalledWith(
+        'valid-token',
+      );
       expect(client.disconnect).not.toHaveBeenCalled();
       expect(client.data.userId).toBe('test-user-id');
     });
@@ -115,7 +123,10 @@ describe('CommunicationGateway', () => {
 
       const result = await gateway.handleJoinMatch(client, 'match123');
 
-      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith('user1', 'match123');
+      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith(
+        'user1',
+        'match123',
+      );
       expect(client.join).toHaveBeenCalledWith('match_match123');
       expect(result).toEqual({ event: 'joinedRoom', data: 'match123' });
     });
@@ -128,7 +139,9 @@ describe('CommunicationGateway', () => {
 
       mockMatchService.isUserInMatch.mockResolvedValue(false);
 
-      await expect(gateway.handleJoinMatch(client, 'match123')).rejects.toThrow(WsException);
+      await expect(gateway.handleJoinMatch(client, 'match123')).rejects.toThrow(
+        WsException,
+      );
       expect(client.join).not.toHaveBeenCalled();
     });
 
@@ -138,7 +151,9 @@ describe('CommunicationGateway', () => {
         data: { userId: 'user1' },
       } as any;
 
-      await expect(gateway.handleJoinMatch(client, null)).rejects.toThrow(WsException);
+      await expect(gateway.handleJoinMatch(client, null)).rejects.toThrow(
+        WsException,
+      );
     });
   });
 
@@ -155,10 +170,20 @@ describe('CommunicationGateway', () => {
 
       const result = await gateway.handleSendMessage(client, payload);
 
-      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith('user1', 'match123');
-      expect(mockCommunicationService.saveMessage).toHaveBeenCalledWith('match123', 'user1', 'hello');
+      expect(mockMatchService.isUserInMatch).toHaveBeenCalledWith(
+        'user1',
+        'match123',
+      );
+      expect(mockCommunicationService.saveMessage).toHaveBeenCalledWith(
+        'match123',
+        'user1',
+        'hello',
+      );
       expect(gateway.server.to).toHaveBeenCalledWith('match_match123');
-      expect(gateway.server.emit).toHaveBeenCalledWith('newMessage', savedMessage);
+      expect(gateway.server.emit).toHaveBeenCalledWith(
+        'newMessage',
+        savedMessage,
+      );
       expect(result).toEqual({ status: 'ok', messageId: 'msg1' });
     });
 
@@ -170,7 +195,9 @@ describe('CommunicationGateway', () => {
 
       mockMatchService.isUserInMatch.mockResolvedValue(false);
 
-      await expect(gateway.handleSendMessage(client, payload)).rejects.toThrow(WsException);
+      await expect(gateway.handleSendMessage(client, payload)).rejects.toThrow(
+        WsException,
+      );
     });
   });
 });

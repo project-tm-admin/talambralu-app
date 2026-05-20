@@ -18,6 +18,7 @@ export class InfraStack extends cdk.Stack {
   public readonly mediaBucket: s3.Bucket;
   public readonly selfieQueue: sqs.Queue;
   public readonly incomeQueue: sqs.Queue;
+  public readonly cleanupQueue: sqs.Queue;
   public readonly redisSubnetGroup: elasticache.CfnSubnetGroup;
   public readonly redisSecurityGroup: ec2.SecurityGroup;
   public readonly redisReplicationGroup: elasticache.CfnReplicationGroup;
@@ -188,9 +189,25 @@ export class InfraStack extends cdk.Stack {
       { prefix: 'verification-docs/paystubs/' }
     );
 
+    // Story 6.1: DLQ for account cleanup processing
+    const cleanupDlq = new sqs.Queue(this, 'CleanupProcessingDLQ', {
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    // Story 6.1: SQS Queue for account cleanup processing
+    this.cleanupQueue = new sqs.Queue(this, 'CleanupProcessingQueue', {
+      visibilityTimeout: cdk.Duration.seconds(300),
+      deadLetterQueue: {
+        maxReceiveCount: 3,
+        queue: cleanupDlq,
+      }
+    });
+
     // Grant Fargate task permissions to read from SQS
     this.selfieQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
     this.incomeQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
+    this.cleanupQueue.grantConsumeMessages(this.fargateService.taskDefinition.taskRole);
+    this.cleanupQueue.grantSendMessages(this.fargateService.taskDefinition.taskRole);
 
     // Grant Fargate task permissions to use Rekognition, Textract, and S3 Delete
     this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
@@ -209,8 +226,11 @@ export class InfraStack extends cdk.Stack {
 
     this.fargateService.taskDefinition.taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:DeleteObject'],
-        resources: [this.mediaBucket.arnForObjects('verification-docs/*')],
+        actions: ['s3:DeleteObject', 's3:ListBucket'],
+        resources: [
+          this.mediaBucket.bucketArn,
+          this.mediaBucket.arnForObjects('*'),
+        ],
       })
     );
 
@@ -223,5 +243,9 @@ export class InfraStack extends cdk.Stack {
       'AWS_SQS_INCOME_QUEUE_URL',
       this.incomeQueue.queueUrl
     );
-  }
-}
+    this.fargateService.taskDefinition.defaultContainer?.addEnvironment(
+      'AWS_SQS_CLEANUP_QUEUE_URL',
+      this.cleanupQueue.queueUrl
+    );
+    }
+    }

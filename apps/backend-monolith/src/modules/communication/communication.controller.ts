@@ -30,21 +30,25 @@ export class CommunicationController {
   ) {
     const userId = user.uid;
 
-    const isParticipant = await this.matchService.isUserInMatch(userId, matchId);
+    const isParticipant = await this.matchService.isUserInMatch(
+      userId,
+      matchId,
+    );
     if (!isParticipant) {
       throw new ForbiddenException('Unauthorized access to match room');
     }
 
     if (before && isNaN(new Date(before).getTime())) {
-      throw new BadRequestException('Invalid date format for "before" parameter');
+      throw new BadRequestException(
+        'Invalid date format for "before" parameter',
+      );
     }
 
-    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100);
-
-    return this.communicationService.getMessages(
-      matchId,
-      parsedLimit,
-      before,
+    const parsedLimit = Math.min(
+      Math.max(parseInt(limit || '50', 10) || 50, 1),
+      100,
     );
+
+    return this.communicationService.getMessages(matchId, parsedLimit, before);
   }
 }

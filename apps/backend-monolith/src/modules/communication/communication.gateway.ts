@@ -37,7 +37,8 @@ export class CommunicationGateway
 
   async handleConnection(client: Socket) {
     try {
-      const authHeader = client.handshake.auth.token || client.handshake.headers.authorization;
+      const authHeader =
+        client.handshake.auth.token || client.handshake.headers.authorization;
       if (!authHeader) {
         this.logger.warn(`Disconnecting unauthenticated client: ${client.id}`);
         client.disconnect(true);
@@ -52,9 +53,13 @@ export class CommunicationGateway
 
       // Store user id in socket instance
       client.data.userId = decodedToken.uid;
-      this.logger.log(`Client connected: ${client.id}, User: ${decodedToken.uid}`);
+      this.logger.log(
+        `Client connected: ${client.id}, User: ${decodedToken.uid}`,
+      );
     } catch (error) {
-      this.logger.warn(`Authentication failed for client: ${client.id}: ${error.message}`);
+      this.logger.warn(
+        `Authentication failed for client: ${client.id}: ${error.message}`,
+      );
       client.disconnect(true);
     }
   }
@@ -73,10 +78,15 @@ export class CommunicationGateway
     }
 
     const userId = client.data.userId;
-    const isParticipant = await this.matchService.isUserInMatch(userId, matchId);
+    const isParticipant = await this.matchService.isUserInMatch(
+      userId,
+      matchId,
+    );
 
     if (!isParticipant) {
-      this.logger.warn(`User ${userId} attempted to join unauthorized match room: ${matchId}`);
+      this.logger.warn(
+        `User ${userId} attempted to join unauthorized match room: ${matchId}`,
+      );
       throw new WsException('Unauthorized access to match room');
     }
 
@@ -95,7 +105,10 @@ export class CommunicationGateway
     const userId = client.data.userId;
 
     // 1. Validate participation
-    const isParticipant = await this.matchService.isUserInMatch(userId, matchId);
+    const isParticipant = await this.matchService.isUserInMatch(
+      userId,
+      matchId,
+    );
     if (!isParticipant) {
       throw new WsException('Unauthorized access to match room');
     }
@@ -121,4 +134,3 @@ export class CommunicationGateway
     return { status: 'ok', messageId: message.id };
   }
 }
-

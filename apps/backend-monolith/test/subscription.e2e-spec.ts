@@ -13,7 +13,10 @@ jest.mock('firebase-admin', () => ({
       .mockResolvedValue({ uid: 'firebase-uid-1', email: 'user@example.com' }),
   }),
   initializeApp: jest.fn(),
-  credential: { cert: jest.fn(), applicationDefault: jest.fn().mockReturnValue({}) },
+  credential: {
+    cert: jest.fn(),
+    applicationDefault: jest.fn().mockReturnValue({}),
+  },
   apps: [],
 }));
 

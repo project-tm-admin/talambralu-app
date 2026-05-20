@@ -12,8 +12,8 @@ describe('MatchController', () => {
         {
           provide: MatchService,
           useValue: {},
-        }
-      ]
+        },
+      ],
     }).compile();
 
     controller = module.get<MatchController>(MatchController);
@@ -23,4 +23,3 @@ describe('MatchController', () => {
     expect(controller).toBeDefined();
   });
 });
-

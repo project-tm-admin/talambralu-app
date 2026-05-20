@@ -1,12 +1,30 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
 import { DiscoveryQueryDto } from './dto/discovery-query.dto';
 import { Prisma } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
-export class ProfileService {
-  constructor(private prisma: PrismaService) {}
+export class ProfileService implements OnModuleInit {
+  private sqsClient: SQSClient;
+  private cleanupQueueUrl: string | undefined;
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private authService: AuthService,
+  ) {}
+
+  onModuleInit() {
+    const region = this.configService.get<string>('AWS_REGION') || 'us-east-1';
+    this.cleanupQueueUrl = this.configService.get<string>(
+      'AWS_SQS_CLEANUP_QUEUE_URL',
+    );
+    this.sqsClient = new SQSClient({ region });
+  }
 
   async upsertProfile(userId: string, dto: UpsertProfileDto) {
     return this.prisma.profile.upsert({
@@ -64,7 +82,9 @@ export class ProfileService {
     }
 
     if (minAge && maxAge && minAge > maxAge) {
-      throw new BadRequestException('minAge must be less than or equal to maxAge');
+      throw new BadRequestException(
+        'minAge must be less than or equal to maxAge',
+      );
     }
 
     if (minAge || maxAge) {
@@ -102,5 +122,31 @@ export class ProfileService {
     ]);
 
     return { data, total };
+  }
+
+  async deleteAccount(userId: string) {
+    // 1. Publish SQS message for S3 cleanup
+    if (this.cleanupQueueUrl) {
+      const command = new SendMessageCommand({
+        QueueUrl: this.cleanupQueueUrl,
+        MessageBody: JSON.stringify({ userId }),
+      });
+      await this.sqsClient.send(command);
+    }
+
+    // 2. Delete from database (cascades automatically)
+    await this.prisma.profile.delete({
+      where: { userId },
+    });
+
+    // 3. Delete from Firebase Auth
+    try {
+      await this.authService.deleteUser(userId);
+    } catch (error) {
+      // If user is already deleted or not found in Firebase, we should log and continue
+      console.error(`Error deleting Firebase user ${userId}:`, error);
+    }
+
+    return { success: true };
   }
 }

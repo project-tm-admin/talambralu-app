@@ -37,7 +37,11 @@ describe('CommunicationService', () => {
       const dto = { matchId: 'uuid', senderId: 'user1', content: 'hello' };
       mockPrisma.message.create.mockResolvedValue({ id: 'msg1', ...dto });
 
-      const result = await service.saveMessage(dto.matchId, dto.senderId, dto.content);
+      const result = await service.saveMessage(
+        dto.matchId,
+        dto.senderId,
+        dto.content,
+      );
 
       expect(prisma.message.create).toHaveBeenCalledWith({
         data: dto,

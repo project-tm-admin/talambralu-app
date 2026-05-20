@@ -10,6 +10,7 @@ import { MatchModule } from './modules/match/match.module';
 import { CommunicationModule } from './modules/communication/communication.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { CleanupModule } from './modules/cleanup/cleanup.module';
 import { FirebaseModule } from './common/firebase/firebase.module';
 import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -26,6 +27,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
     MatchModule,
     CommunicationModule,
     SubscriptionModule,
+    CleanupModule,
   ],
   controllers: [AppController],
   providers: [

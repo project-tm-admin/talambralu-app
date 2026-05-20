@@ -49,7 +49,7 @@ describe('SubscriptionController', () => {
 
       const result = await controller.handleRevenueCatWebhook(
         WEBHOOK_SECRET,
-        validBody as any,
+        validBody,
       );
 
       expect(mockService.processWebhookEvent).toHaveBeenCalledWith(

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Delete } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
@@ -18,5 +18,10 @@ export class ProfileController {
   @Get('me')
   async getMe(@CurrentUser() user: { uid: string }) {
     return this.profileService.getProfileByUserId(user.uid);
+  }
+
+  @Delete('me')
+  async deleteMe(@CurrentUser() user: { uid: string }) {
+    return this.profileService.deleteAccount(user.uid);
   }
 }

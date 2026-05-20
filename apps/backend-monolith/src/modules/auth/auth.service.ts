@@ -16,4 +16,8 @@ export class AuthService implements OnModuleInit {
       console.log('Firebase Admin SDK initialized successfully.');
     }
   }
+
+  async deleteUser(userId: string) {
+    return admin.auth().deleteUser(userId);
+  }
 }

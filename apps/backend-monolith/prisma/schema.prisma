@@ -39,6 +39,10 @@ model Profile {
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
 
+  matchesSent     Match[]           @relation("MatchesSent")
+  matchesReceived Match[]           @relation("MatchesReceived")
+  subscription    UserSubscription?
+
   @@map("profiles")
 }
 
@@ -50,6 +54,9 @@ model Match {
   createdAt  DateTime    @default(now()) @map("created_at")
   updatedAt  DateTime    @updatedAt @map("updated_at")
   messages   Message[]
+
+  sender   Profile @relation("MatchesSent", fields: [senderId], references: [userId], onDelete: Cascade)
+  receiver Profile @relation("MatchesReceived", fields: [receiverId], references: [userId], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
   @@map("matches")
@@ -81,6 +88,8 @@ model UserSubscription {
   expiresAt          DateTime?        @map("expires_at")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  profile Profile @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("user_subscriptions")
 }

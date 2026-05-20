@@ -2,7 +2,11 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import { INestApplicationContext, Logger, OnApplicationShutdown } from '@nestjs/common';
+import {
+  INestApplicationContext,
+  Logger,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export class RedisIoAdapter extends IoAdapter implements OnApplicationShutdown {
@@ -17,13 +21,20 @@ export class RedisIoAdapter extends IoAdapter implements OnApplicationShutdown {
 
   async connectToRedis(): Promise<void> {
     const configService = this.app.get(ConfigService);
-    const redisUrl = configService.get<string>('REDIS_URL', 'redis://localhost:6379');
+    const redisUrl = configService.get<string>(
+      'REDIS_URL',
+      'redis://localhost:6379',
+    );
 
     this.pubClient = createClient({ url: redisUrl });
     this.subClient = this.pubClient.duplicate();
 
-    this.pubClient.on('error', (err) => this.logger.error(`Redis Pub Client Error: ${err.message}`));
-    this.subClient.on('error', (err) => this.logger.error(`Redis Sub Client Error: ${err.message}`));
+    this.pubClient.on('error', (err) =>
+      this.logger.error(`Redis Pub Client Error: ${err.message}`),
+    );
+    this.subClient.on('error', (err) =>
+      this.logger.error(`Redis Sub Client Error: ${err.message}`),
+    );
 
     try {
       await Promise.all([this.pubClient.connect(), this.subClient.connect()]);
@@ -43,9 +54,6 @@ export class RedisIoAdapter extends IoAdapter implements OnApplicationShutdown {
 
   async onApplicationShutdown() {
     this.logger.log('Closing Redis connections...');
-    await Promise.all([
-      this.pubClient?.quit(),
-      this.subClient?.quit(),
-    ]);
+    await Promise.all([this.pubClient?.quit(), this.subClient?.quit()]);
   }
 }

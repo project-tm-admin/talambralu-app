@@ -12,7 +12,7 @@ describe('MatchService', () => {
         {
           provide: PrismaService,
           useValue: {},
-        }
+        },
       ],
     }).compile();
 
@@ -23,4 +23,3 @@ describe('MatchService', () => {
     expect(service).toBeDefined();
   });
 });
-

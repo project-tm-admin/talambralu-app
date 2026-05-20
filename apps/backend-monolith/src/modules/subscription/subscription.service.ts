@@ -114,7 +114,8 @@ export class SubscriptionService {
     if (!sub) return SubscriptionTier.FREE;
     // Safety net: treat as FREE if the subscription has expired locally,
     // even if the EXPIRATION webhook hasn't arrived yet.
-    if (sub.expiresAt && sub.expiresAt < new Date()) return SubscriptionTier.FREE;
+    if (sub.expiresAt && sub.expiresAt < new Date())
+      return SubscriptionTier.FREE;
     return sub.tier;
   }
 }
