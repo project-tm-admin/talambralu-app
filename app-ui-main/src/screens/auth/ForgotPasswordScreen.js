@@ -10,11 +10,11 @@ import Primary from '../../components/Primary';
 
 function LockIcon() {
   return (
-    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
-      <Rect width={48} height={48} rx={14} fill={T.field} />
-      <Rect x="13" y="23" width="22" height="16" rx="3" stroke={T.accent} strokeWidth={2} fill="none" />
-      <Path d="M17 23v-6a7 7 0 0114 0v6" stroke={T.accent} strokeWidth={2} strokeLinecap="round" />
-      <Circle cx="24" cy="31" r="2" fill={T.accent} />
+    <Svg width={64} height={64} viewBox="0 0 64 64" fill="none">
+      <Rect width={64} height={64} rx={16} fill="#C2EDE7" />
+      <Rect x="16" y="30" width="32" height="22" rx="4" stroke="#2E8B7A" strokeWidth={2} fill="none" />
+      <Path d="M22 30v-8a10 10 0 0120 0v8" stroke="#2E8B7A" strokeWidth={2} strokeLinecap="round" />
+      <Circle cx="32" cy="41" r="2.5" fill="#2E8B7A" />
     </Svg>
   );
 }

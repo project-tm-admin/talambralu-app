@@ -25,10 +25,10 @@ function BigAvatar() {
   );
 }
 
-function ActionRow({ icon, title, subtitle, cta, onPress }) {
+function ActionRow({ icon, title, subtitle, cta, onPress, iconBg }) {
   return (
     <TouchableOpacity style={styles.actionRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.actionIcon}>{icon}</View>
+      <View style={[styles.actionIcon, iconBg && { backgroundColor: iconBg }]}>{icon}</View>
       <View style={styles.actionText}>
         <Text style={styles.actionTitle}>{title}</Text>
         {subtitle ? <Text style={styles.actionSub}>{subtitle}</Text> : null}
@@ -43,8 +43,8 @@ function ActionRow({ icon, title, subtitle, cta, onPress }) {
 function PhotoIcon() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={T.accent} strokeWidth={1.6} fill="none" />
-      <Circle cx="12" cy="13" r="4" stroke={T.accent} strokeWidth={1.6} />
+      <Path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#2E8B7A" strokeWidth={1.6} fill="none" />
+      <Circle cx="12" cy="13" r="4" stroke="#2E8B7A" strokeWidth={1.6} />
     </Svg>
   );
 }
@@ -83,6 +83,7 @@ export default function VerifyScreen() {
 
         <ActionRow
           icon={<PhotoIcon />}
+          iconBg="#C2EDE7"
           title="Verify your photo"
           subtitle="Take a selfie to match your profile"
           cta="Verify →"
@@ -115,17 +116,7 @@ export default function VerifyScreen() {
 
         <Primary
           label="See your matches"
-          onPress={() => {
-            // Check if MainTabs is available in the current navigator, otherwise fallback to the root Navigation state
-            try {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'MainTabs' }],
-              });
-            } catch (e) {
-              console.log('Navigation to MainTabs failed, falling back', e);
-            }
-          }}
+          onPress={() => navigation.navigate('MainTabs')}
           style={{ marginTop: 28 }}
         />
       </ScrollView>

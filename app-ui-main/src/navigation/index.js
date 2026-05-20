@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import Purchases from 'react-native-purchases';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../theme';
-import { auth } from '../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import apiClient from '../api/client';
 
 // Auth screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -47,9 +43,6 @@ import FiltersScreen from '../screens/browse/FiltersScreen';
 import InboxScreen from '../screens/messaging/InboxScreen';
 import ChatScreen from '../screens/messaging/ChatScreen';
 import CallScreen from '../screens/messaging/CallScreen';
-
-// Monetization
-import PaywallScreen from '../screens/paywall/PaywallScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -150,66 +143,6 @@ function MainTabs() {
 }
 
 export default function Navigation() {
-  const [initializing, setInitializing] = useState(true);
-  const [user, setUser] = useState(null);
-  const [hasProfile, setHasProfile] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        try {
-          await Purchases.logIn(user.uid);
-        } catch (e) {
-          console.error('RevenueCat logIn failed', e);
-        }
-        await checkProfile();
-      } else {
-        setHasProfile(false);
-        setInitializing(false);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const checkProfile = async () => {
-    try {
-      const response = await apiClient.get('/profiles/me');
-      if (response.data) {
-        setHasProfile(true);
-      } else {
-        setHasProfile(false);
-      }
-    } catch (e) {
-      console.log('Profile fetch failed or not found', e.message);
-      setHasProfile(false);
-    } finally {
-      setInitializing(false);
-    }
-  };
-
-  // Proactive polling while in onboarding to ensure state sync
-  useEffect(() => {
-    let interval;
-    if (user && !hasProfile) {
-      interval = setInterval(() => {
-        checkProfile();
-      }, 3000); // Check every 3 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [user, hasProfile]);
-
-  if (initializing) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: T.bg }}>
-        <ActivityIndicator size="large" color={T.accent} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
     <NavigationContainer>
@@ -230,44 +163,37 @@ export default function Navigation() {
           }),
         }}
       >
-        {!user ? (
-          <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
-            <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
-            <Stack.Screen name="OTP" component={OTPScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          </>
-        ) : !hasProfile ? (
-          <>
-            <Stack.Screen name="NameDOB" component={NameDOBScreen} />
-            <Stack.Screen name="Gender" component={GenderScreen} />
-            <Stack.Screen name="USLocation" component={USLocationScreen} />
-            <Stack.Screen name="IndiaOrigin" component={IndiaOriginScreen} />
-            <Stack.Screen name="Religion" component={ReligionScreen} />
-            <Stack.Screen name="Education" component={EducationScreen} />
-            <Stack.Screen name="Visa" component={VisaScreen} />
-            <Stack.Screen name="Family" component={FamilyScreen} />
-            <Stack.Screen name="Horoscope" component={HoroscopeScreen} />
-            <Stack.Screen name="Diet" component={DietScreen} />
-            <Stack.Screen name="Photos" component={PhotosScreen} />
-            <Stack.Screen name="About" component={AboutScreen} />
-            <Stack.Screen name="Preferences" component={PreferencesScreen} />
-            <Stack.Screen name="Verify" component={VerifyScreen} />
-            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
-            <Stack.Screen name="Filters" component={FiltersScreen} />
-            <Stack.Screen name="Chat" component={ChatScreen} />
-            <Stack.Screen name="Call" component={CallScreen} />
-            <Stack.Screen name="Verifications" component={VerificationsScreen} />
-            <Stack.Screen name="ProfileVisitors" component={ProfileVisitorsScreen} />
-            <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
-          </>
-        )}
+        {/* Auth */}
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
+        <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
+        <Stack.Screen name="OTP" component={OTPScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+
+        {/* Profile creation */}
+        <Stack.Screen name="NameDOB" component={NameDOBScreen} />
+        <Stack.Screen name="Gender" component={GenderScreen} />
+        <Stack.Screen name="USLocation" component={USLocationScreen} />
+        <Stack.Screen name="IndiaOrigin" component={IndiaOriginScreen} />
+        <Stack.Screen name="Religion" component={ReligionScreen} />
+        <Stack.Screen name="Education" component={EducationScreen} />
+        <Stack.Screen name="Visa" component={VisaScreen} />
+        <Stack.Screen name="Family" component={FamilyScreen} />
+        <Stack.Screen name="Horoscope" component={HoroscopeScreen} />
+        <Stack.Screen name="Diet" component={DietScreen} />
+        <Stack.Screen name="Photos" component={PhotosScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="Preferences" component={PreferencesScreen} />
+        <Stack.Screen name="Verify" component={VerifyScreen} />
+
+        {/* Main app */}
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
+        <Stack.Screen name="Filters" component={FiltersScreen} />
+        <Stack.Screen name="Chat" component={ChatScreen} />
+        <Stack.Screen name="Call" component={CallScreen} />
+        <Stack.Screen name="Verifications" component={VerificationsScreen} />
+        <Stack.Screen name="ProfileVisitors" component={ProfileVisitorsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </SafeAreaProvider>
@@ -312,5 +238,3 @@ const tabStyles = StyleSheet.create({
     backgroundColor: T.accent,
   },
 });
-
-

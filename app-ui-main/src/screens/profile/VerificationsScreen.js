@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 
 function BackArrow() {
@@ -15,44 +15,60 @@ function BackArrow() {
 
 function FaceIcon() {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="8" r="4" stroke={T.mute} strokeWidth={1.6} />
-      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={T.mute} strokeWidth={1.6} strokeLinecap="round" />
+    <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+      <Rect width={44} height={44} rx={12} fill="#C2EDE7" />
+      {/* Scan brackets */}
+      <Path d="M13 18v-3a2 2 0 012-2h3" stroke="#2E8B7A" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M31 18v-3a2 2 0 00-2-2h-3" stroke="#2E8B7A" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M13 26v3a2 2 0 002 2h3" stroke="#2E8B7A" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M31 26v3a2 2 0 01-2 2h-3" stroke="#2E8B7A" strokeWidth={1.8} strokeLinecap="round" />
+      {/* Face */}
+      <Circle cx="22" cy="19" r="4" stroke="#2E8B7A" strokeWidth={1.6} />
+      <Path d="M15 30c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke="#2E8B7A" strokeWidth={1.6} strokeLinecap="round" />
     </Svg>
   );
 }
 
 function CardIcon() {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Rect x="2" y="5" width="20" height="14" rx="2" stroke={T.mute} strokeWidth={1.6} />
-      <Path d="M2 10h20" stroke={T.mute} strokeWidth={1.6} />
-      <Path d="M6 15h4" stroke={T.mute} strokeWidth={1.6} strokeLinecap="round" />
+    <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+      <Rect width={44} height={44} rx={12} fill="#C8DCFF" />
+      <Rect x="8" y="13" width="28" height="18" rx="3" stroke="#4A7AE8" strokeWidth={1.8} fill="none" />
+      <Path d="M8 19h28" stroke="#4A7AE8" strokeWidth={1.8} />
+      <Path d="M13 25h6" stroke="#4A7AE8" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M13 28h4" stroke="#4A7AE8" strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
 
 function DollarIcon() {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke={T.mute} strokeWidth={1.6} strokeLinecap="round" />
+    <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+      <Rect width={44} height={44} rx={12} fill="#C8EFCC" />
+      <Path d="M22 10v24" stroke="#3A9A50" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M27 14h-6.5a4 4 0 000 8h3a4 4 0 010 8H17" stroke="#3A9A50" strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
 
 function GradCapIcon() {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M22 10L12 4 2 10l10 6 10-6z" stroke={T.mute} strokeWidth={1.6} strokeLinejoin="round" />
-      <Path d="M6 12v5c2 2 8 2 12 0v-5" stroke={T.mute} strokeWidth={1.6} strokeLinecap="round" />
+    <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+      <Rect width={44} height={44} rx={12} fill="#FFE8C0" />
+      <Path d="M22 13L8 20l14 7 14-7-14-7z" stroke="#C87820" strokeWidth={1.8} strokeLinejoin="round" />
+      <Path d="M13 23v6c3 2.5 13 2.5 18 0v-6" stroke="#C87820" strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M36 20v5" stroke="#C87820" strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 }
 
 function PhoneIcon() {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M22 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 012 2.18 2 2 0 014 0h3a2 2 0 012 1.72c.127.96.361 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 7.91A16 16 0 0016.1 15.9l1.27-1.27a2 2 0 012.11-.45c.91.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke={T.mute} strokeWidth={1.6} />
+    <Svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+      <Rect width={44} height={44} rx={12} fill="#E8DCFF" />
+      <Rect x="14" y="9" width="16" height="26" rx="3" stroke="#7A50C8" strokeWidth={1.8} fill="none" />
+      <Path d="M19 13h6" stroke="#7A50C8" strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx="22" cy="30" r="1.5" fill="#7A50C8" />
     </Svg>
   );
 }
@@ -243,7 +259,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: T.field,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
