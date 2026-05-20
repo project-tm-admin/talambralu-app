@@ -1,38 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, Dimensions,
+  Animated, PanResponder, ActivityIndicator, Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Line, Rect, Defs, Pattern } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../../theme';
-import apiClient from '../../api/client';
+import { api } from '../../api/client';
 
 const { width } = Dimensions.get('window');
 const CARD_W = width - 32;
+const SWIPE_THRESHOLD = Math.min(50, CARD_W * 0.2);
 
 function BellIcon() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={T.ink} strokeWidth={1.8} strokeLinecap="round" />
       <Path d="M13.73 21a2 2 0 01-3.46 0" stroke={T.ink} strokeWidth={1.8} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function TrendUpIcon() {
-  return (
-    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
-      <Path d="M23 6l-9.5 9.5-5-5L1 18" stroke="#22863a" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M17 6h6v6" stroke="#22863a" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 12 12" fill="none">
-      <Circle cx="6" cy="6" r="6" fill={T.verify} />
-      <Path d="M3.5 6l1.8 1.8L8.5 4" stroke="white" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -64,70 +50,182 @@ function ChevronUp() {
   );
 }
 
-const WHY_REASONS = [
-  { icon: '🎓', text: "Both have US master's degrees" },
-  { icon: '📍', text: 'Dallas — same metro area' },
-  { icon: '🙏', text: 'Hindu · Kamma community match' },
-  { icon: '⭐', text: 'Compatible birth stars (Rohini–Mrigashira)' },
+const GRADIENTS = [
+  ['#C4956A', '#A87050', '#8A5A3C'],
+  ['#9B7FA8', '#7A5F8A', '#5A4070'],
+  ['#6A8BA8', '#4A6A8A', '#2A4A6A'],
+  ['#7A9A70', '#5A7A50', '#3A5A30'],
+  ['#A88B6A', '#8A6A4A', '#6A4A2A'],
 ];
 
-const STATS = [
-  { label: 'HEIGHT', value: "5'6\"" },
-  { label: 'RELIGION', value: 'Hindu · Kamma' },
-  { label: 'INCOME', value: '$185K / yr' },
-  { label: 'COMPLEXION', value: 'Wheatish' },
-];
+const calculateAge = (dobString) => {
+  const dob = new Date(dobString);
+  const diff = Date.now() - dob.getTime();
+  const ageDate = new Date(diff);
+  return Math.abs(ageDate.getUTCFullYear() - 1970);
+};
 
 export default function MatchesScreen() {
   const navigation = useNavigation();
   const [showWhy, setShowWhy] = useState(false);
-  const [profiles, setProfiles] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('Anika');
+
+  const translateX = useRef(new Animated.Value(0)).current;
+  const indexRef = useRef(0);
+  const pendingEntryDir = useRef(null);
 
   useEffect(() => {
-    const fetchProfiles = async () => {
-      try {
-        const response = await apiClient.get('/discovery');
-        setProfiles(response.data);
-      } catch (error) {
-        console.error('Error fetching discovery profiles:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfiles();
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      const [profileData, discoveryData] = await Promise.all([
+        api.get('/v1/profiles/me'),
+        api.get('/v1/discovery'),
+      ]);
+      
+      if (profileData && profileData.fullName) {
+        setUserName(profileData.fullName.split(' ')[0]);
+      }
+
+      const formattedMatches = discoveryData.data.map((p, i) => ({
+        id: p.id,
+        name: p.fullName,
+        age: calculateAge(p.dob),
+        location: 'US · Local Area', // Backend doesn't have location yet
+        photos: 1,
+        gradient: GRADIENTS[i % GRADIENTS.length],
+        isFaceVerified: p.isFaceVerified,
+        stats: [
+          { label: 'GENDER', value: p.gender },
+          { label: 'VERIFIED', value: p.isFaceVerified ? 'YES' : 'NO' },
+          { label: 'INCOME', value: p.incomeBracket || 'Not shared' },
+          { label: 'JOINED', value: new Date(p.createdAt).toLocaleDateString() },
+        ],
+        whyReasons: [
+          { icon: '✨', text: 'New profile in your area' },
+          { icon: '📍', text: 'Lives in the United States' },
+          p.isFaceVerified ? { icon: '✅', text: 'Face verified profile' } : null,
+        ].filter(Boolean),
+      }));
+
+      setMatches(formattedMatches);
+    } catch (err) {
+      console.error('Fetch Matches Error', err);
+      // Alert.alert('Error', 'Failed to load matches.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    indexRef.current = currentIndex;
+    setShowWhy(false);
+  }, [currentIndex]);
+
+  useLayoutEffect(() => {
+    const dir = pendingEntryDir.current;
+    if (dir !== null) {
+      pendingEntryDir.current = null;
+      translateX.setValue(dir * (CARD_W + 48));
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 220,
+        friction: 20,
+      }).start();
+    }
+  }, [currentIndex]);
+
+  const commitSwipe = (nextIndex, entryDir) => {
+    pendingEntryDir.current = entryDir;
+    setCurrentIndex(nextIndex);
+  };
+
+  const advanceTo = (next) => {
+    if (next < 0 || next >= matches.length) return;
+    commitSwipe(next, next > indexRef.current ? 1 : -1);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > Math.abs(gs.dy) && Math.abs(gs.dx) > 8,
+      onPanResponderMove: (_, gs) => {
+        const idx = indexRef.current;
+        const atStart = idx === 0 && gs.dx > 0;
+        const atEnd = idx === matches.length - 1 && gs.dx < 0;
+        translateX.setValue(atStart || atEnd ? gs.dx * 0.15 : gs.dx);
+      },
+      onPanResponderRelease: (_, gs) => {
+        const idx = indexRef.current;
+        if (gs.dx < -SWIPE_THRESHOLD && idx < matches.length - 1) {
+          commitSwipe(idx + 1, 1);
+        } else if (gs.dx > SWIPE_THRESHOLD && idx > 0) {
+          commitSwipe(idx - 1, -1);
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 180,
+            friction: 12,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 180,
+          friction: 12,
+        }).start();
+      },
+    })
+  ).current;
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safe, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.safe, styles.center]}>
         <ActivityIndicator size="large" color={T.accent} />
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const currentProfile = profiles[currentIndex];
-
-  if (!currentProfile) {
+  if (matches.length === 0) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.namaste}>No matches yet</Text>
+            <View style={styles.headerLeft}>
+              <Text style={styles.namaste}>Namaste, {userName}</Text>
+            </View>
         </View>
-        <Text style={{ textAlign: 'center', marginTop: 50, color: T.mute }}>Check back later for handpicked matches!</Text>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>No matches found for you today.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchInitialData}>
+             <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
+
+  const match = matches[currentIndex];
+  const firstName = match.name.split(' ')[0];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.dateLabel}>TUESDAY · MAY 5</Text>
-          <Text style={styles.namaste}>Namaste, User</Text>
-          <Text style={styles.tagline}>{profiles.length} new matches for you today</Text>
+          <Text style={styles.dateLabel}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</Text>
+          <Text style={styles.namaste}>Namaste, {userName}</Text>
+          <Text style={styles.tagline}>{matches.length} new matches handpicked for you today</Text>
         </View>
         <TouchableOpacity style={styles.bellBtn} activeOpacity={0.7}>
           <BellIcon />
@@ -138,24 +236,21 @@ export default function MatchesScreen() {
       {/* ── Intro row ── */}
       <View style={styles.introRow}>
         <Text style={styles.introLabel}>Today's introductions</Text>
-        <Text style={styles.introCount}>{currentIndex + 1} OF {profiles.length}</Text>
+        <Text style={styles.introCount}>{currentIndex + 1} OF {matches.length}</Text>
       </View>
 
       {/* ── Match card ── */}
-      <TouchableOpacity
-        style={styles.matchCard}
-        onPress={() => navigation.navigate('MatchDetail', { profileId: currentProfile.id })}
-        activeOpacity={0.97}
+      <Animated.View
+        style={[styles.matchCard, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
       >
-        {/* Photo area */}
         <View style={styles.photoArea}>
           <LinearGradient
-            colors={['#C4956A', '#A87050', '#8A5A3C']}
+            colors={match.gradient}
             start={{ x: 0.3, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-          {/* Diagonal stripe overlay on right portion */}
           <View style={styles.stripeOverlay} pointerEvents="none">
             {Array.from({ length: 20 }).map((_, i) => (
               <View
@@ -164,22 +259,35 @@ export default function MatchesScreen() {
               />
             ))}
           </View>
+          <View style={styles.photosCount}>
+            <GridIcon />
+            <Text style={styles.photosCountText}>{match.photos} photos</Text>
+          </View>
+          {match.isFaceVerified && (
+             <View style={styles.verifyBadge}>
+                <Text style={styles.verifyText}>VERIFIED</Text>
+             </View>
+          )}
         </View>
 
-        {/* Card info */}
         <View style={styles.cardInfo}>
-          <Text style={styles.matchName}>{currentProfile.fullName}</Text>
-          <Text style={styles.matchLocation}>{currentProfile.gender}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('MatchDetail', { profileId: match.id })}
+            activeOpacity={0.7}
+            style={styles.nameHitArea}
+          >
+            <Text style={styles.matchName}>{match.name}, {match.age}</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.matchLocation}>{match.location}</Text>
 
           <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>DOB</Text>
-              <Text style={styles.statValue}>{new Date(currentProfile.dob).toLocaleDateString()}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>VERIFIED</Text>
-              <Text style={styles.statValue}>{currentProfile.isFaceVerified ? 'YES' : 'NO'}</Text>
-            </View>
+            {match.stats.map((s, i) => (
+              <View key={i} style={styles.statItem}>
+                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={styles.statValue}>{s.value}</Text>
+              </View>
+            ))}
           </View>
 
           <TouchableOpacity
@@ -187,31 +295,37 @@ export default function MatchesScreen() {
             onPress={() => setShowWhy(v => !v)}
             activeOpacity={0.7}
           >
-            <Text style={styles.moreAboutText}>MORE ABOUT {currentProfile.fullName.split(' ')[0].toUpperCase()}</Text>
+            <Text style={styles.moreAboutText}>MORE ABOUT {firstName.toUpperCase()}</Text>
             {showWhy ? <ChevronUp /> : <ChevronDown />}
           </TouchableOpacity>
 
           {showWhy && (
             <View style={styles.whyPanel}>
-              <View style={styles.whyRow}>
-                <Text style={styles.whyIcon}>📍</Text>
-                <Text style={styles.whyText}>Verified Member</Text>
-              </View>
+              {match.whyReasons.map((r, i) => (
+                <View key={i} style={styles.whyRow}>
+                  <Text style={styles.whyIcon}>{r.icon}</Text>
+                  <Text style={styles.whyText}>{r.text}</Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </Animated.View>
 
       {/* ── Page dots ── */}
       <View style={styles.dotsRow}>
-        {profiles.map((_, i) => (
+        {matches.map((_, i) => (
           <View key={i} style={[styles.dot, i === currentIndex && styles.dotActive]} />
         ))}
       </View>
 
-      {/* ── Action buttons — always visible ── */}
+      {/* ── Action buttons ── */}
       <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8} onPress={() => setCurrentIndex((currentIndex + 1) % profiles.length)}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => advanceTo(currentIndex + 1)}
+          activeOpacity={0.8}
+        >
           <View style={[styles.actionCircle, styles.passCircle]}>
             <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
               <Path d="M18 6L6 18M6 6l12 12" stroke="#E53E3E" strokeWidth={2.5} strokeLinecap="round" />
@@ -220,7 +334,27 @@ export default function MatchesScreen() {
           <Text style={[styles.actionLabel, { color: '#E53E3E' }]}>Pass</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => advanceTo(currentIndex + 1)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.actionCircle, styles.saveCircle]}>
+            <Svg width={26} height={26} viewBox="0 0 24 24">
+              <Path
+                d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
+                fill="#D4A017" stroke="#D4A017" strokeWidth={0.5}
+              />
+            </Svg>
+          </View>
+          <Text style={[styles.actionLabel, { color: '#B8860B' }]}>Save</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => advanceTo(currentIndex + 1)}
+          activeOpacity={0.8}
+        >
           <View style={[styles.actionCircle, styles.heartCircle]}>
             <Svg width={26} height={26} viewBox="0 0 24 24">
               <Path
@@ -238,14 +372,17 @@ export default function MatchesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.bg },
-
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 16, color: T.mute, marginBottom: 16 },
+  retryBtn: { padding: 12, backgroundColor: T.accent, borderRadius: 8 },
+  retryText: { color: '#fff', fontWeight: '600' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   headerLeft: { flex: 1, marginRight: 12 },
   dateLabel: {
@@ -288,7 +425,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#fff',
   },
-
   introRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -307,7 +443,6 @@ const styles = StyleSheet.create({
     color: T.mute,
     letterSpacing: 0.8,
   },
-
   matchCard: {
     marginHorizontal: 16,
     borderRadius: 20,
@@ -319,9 +454,8 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 6,
   },
-
   photoArea: {
-    height: 240,
+    height: 196,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -340,43 +474,6 @@ const styles = StyleSheet.create({
     height: 10,
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
-
-  matchBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#E6F4EA',
-    borderRadius: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  matchBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1A7A30',
-  },
-
-  verifiedBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#E6F4EA',
-    borderRadius: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  verifiedBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1A7A30',
-  },
-
   photosCount: {
     position: 'absolute',
     bottom: 12,
@@ -394,25 +491,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-
+  verifyBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      backgroundColor: T.verify,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 100,
+  },
+  verifyText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#fff',
+      letterSpacing: 0.5,
+  },
   cardInfo: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  nameHitArea: {
+    minHeight: 44,
+    justifyContent: 'center',
+    marginBottom: 0,
   },
   matchName: {
     fontFamily: FONTS.display,
     fontSize: 24,
     color: T.ink,
-    marginBottom: 2,
   },
   matchLocation: {
     fontSize: 13,
     color: T.mute,
     marginBottom: 12,
+    marginTop: 2,
   },
-
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -423,7 +538,7 @@ const styles = StyleSheet.create({
     width: '47%',
     backgroundColor: T.field,
     borderRadius: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 10,
   },
   statLabel: {
@@ -438,7 +553,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: T.ink,
   },
-
   moreAboutRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -465,13 +579,12 @@ const styles = StyleSheet.create({
   },
   whyIcon: { fontSize: 14 },
   whyText: { fontSize: 13, color: T.ink2, flex: 1 },
-
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   dot: {
     width: 6,
@@ -484,7 +597,6 @@ const styles = StyleSheet.create({
     backgroundColor: T.ink,
     borderRadius: 3,
   },
-
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'center',

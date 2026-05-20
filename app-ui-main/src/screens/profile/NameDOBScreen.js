@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import TopBar from '../../components/TopBar';
@@ -22,30 +22,15 @@ function InfoNote({ text }) {
   );
 }
 
-const monthMap = {
-  'January': '01', 'February': '02', 'March': '03', 'April': '04', 'May': '05', 'June': '06',
-  'July': '07', 'August': '08', 'September': '09', 'October': '10', 'November': '11', 'December': '12'
-};
-
 export default function NameDOBScreen() {
   const navigation = useNavigation();
-  const [firstName, setFirstName] = useState('Anika');
-  const [lastName, setLastName] = useState('Talluri');
+  const route = useRoute();
+  
+  const [firstName, setFirstName] = useState(route.params?.firstName || '');
+  const [lastName, setLastName] = useState(route.params?.lastName || '');
   const [month, setMonth] = useState('March');
   const [day, setDay] = useState('14');
   const [year, setYear] = useState('1996');
-
-  const handleContinue = () => {
-    // Convert month name to number if it's a name, otherwise pad it
-    const m = monthMap[month] || month.padStart(2, '0');
-    const d = day.padStart(2, '0');
-    const formattedDob = `${year}-${m}-${d}`;
-
-    navigation.navigate('Gender', { 
-      fullName: `${firstName} ${lastName}`,
-      dob: formattedDob
-    });
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -74,7 +59,13 @@ export default function NameDOBScreen() {
 
         <Primary 
           label="Continue" 
-          onPress={handleContinue} 
+          onPress={() => {
+            const dob = `${year}-${String(['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(month) + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
+            navigation.navigate('Gender', { 
+              fullName: `${firstName} ${lastName}`,
+              dob: dob
+            });
+          }} 
           style={{ marginTop: 24 }} 
         />
       </ScrollView>

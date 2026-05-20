@@ -57,6 +57,16 @@ export class ProfileService implements OnModuleInit {
     });
   }
 
+  async getProfileById(id: string) {
+    const profile = await this.prisma.profile.findUnique({
+      where: { id },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profile not found');
+    }
+    return profile;
+  }
+
   async findDiscoveryProfiles(userId: string, query: DiscoveryQueryDto) {
     const {
       skip = 0,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -7,8 +7,7 @@ import { T, FONTS } from '../../theme';
 import TopBar from '../../components/TopBar';
 import Stepper from '../../components/Stepper';
 import CardRow from '../../components/CardRow';
-import Primary from '../../components/Primary';
-import apiClient from '../../api/client';
+import { api } from '../../api/client';
 
 function WomanIcon() {
   return (
@@ -28,32 +27,28 @@ function ManIcon() {
   );
 }
 
-
 export default function GenderScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { fullName, dob } = route.params || {};
-
   const [iAm, setIAm] = useState('Woman');
   const [lookingFor, setLookingFor] = useState('Men');
   const [loading, setLoading] = useState(false);
 
+  const fullName = route.params?.fullName;
+  const dob = route.params?.dob;
+
   const handleContinue = async () => {
     setLoading(true);
     try {
-      // Mapping mock UI values to API enum
-      const gender = iAm === 'Woman' ? 'FEMALE' : iAm === 'Man' ? 'MALE' : 'OTHER';
-      
-      await apiClient.post('/profiles', {
-        fullName: fullName || 'Test User',
-        dob: dob || '1996-03-14',
-        gender: gender,
+      await api.post('/v1/profiles', {
+        fullName,
+        dob,
+        gender: iAm.toUpperCase() === 'WOMAN' ? 'FEMALE' : 'MALE'
       });
-      
       navigation.navigate('USLocation');
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Profile Error', error.response?.data?.message || error.message);
+    } catch (err) {
+      console.error('Profile Creation Error', err);
+      Alert.alert('Error', 'Failed to create profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -75,12 +70,13 @@ export default function GenderScreen() {
           <CardRow compact title="Men" selected={lookingFor === 'Men'} onPress={() => setLookingFor('Men')} />
           <CardRow compact title="Women" selected={lookingFor === 'Women'} onPress={() => setLookingFor('Women')} />
         </View>
-        
-        {loading ? (
-          <ActivityIndicator size="large" color={T.accent} />
-        ) : (
-          <Primary label="Continue" onPress={handleContinue} />
-        )}
+        <TouchableOpacity 
+          style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]} 
+          onPress={handleContinue}
+          disabled={loading}
+        >
+            {loading ? <ActivityIndicator color="#fff"/> : <Text style={styles.primaryLabel}>Continue</Text>}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -111,4 +107,20 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 8,
   },
+  primaryBtn: {
+      height: 52,
+      borderRadius: 100,
+      backgroundColor: T.ink,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+  },
+  primaryBtnDisabled: {
+      opacity: 0.5,
+  },
+  primaryLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+  }
 });

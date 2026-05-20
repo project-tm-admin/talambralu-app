@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -7,6 +7,8 @@ import { T, FONTS } from '../../theme';
 import TopBar from '../../components/TopBar';
 import Primary from '../../components/Primary';
 import Ghost from '../../components/Ghost';
+import { auth } from '../../config/firebase';
+import { PhoneAuthProvider } from 'firebase/auth';
 
 function USFlag() {
   return (
@@ -38,6 +40,37 @@ function LockIcon() {
 export default function PhoneSignupScreen() {
   const navigation = useNavigation();
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendCode = async () => {
+    if (!phone || phone.length < 10) {
+      Alert.alert('Invalid Number', 'Please enter a valid phone number.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const fullPhoneNumber = `+1${phone.replace(/\D/g, '')}`;
+      const provider = new PhoneAuthProvider(auth);
+      // Dummy app verifier for web/expo dev. In a real bare RN app, use Firebase Recaptcha.
+      // Expo doesn't have a built-in invisible recaptcha that works nicely with web-based firebase auth out of the box in the client without a webview or specific rnfirebse setup.
+      // Assuming a mock or we are using a test number configured in Firebase.
+      const verificationId = await provider.verifyPhoneNumber(fullPhoneNumber, window.recaptchaVerifier || { type: 'recaptcha', verify: () => Promise.resolve('dummy-token') });
+      
+      navigation.navigate('OTP', { verificationId, phoneNumber: fullPhoneNumber });
+    } catch (err) {
+      console.error('Phone Auth Error', err);
+      // If we hit recapatcha issues in Expo dev, show a friendly alert
+      Alert.alert(
+        'Development Note', 
+        'In Expo Dev without rnfirebase, reCAPTCHA might block real SMS. Please use the test number setup in Firebase Console (e.g., +1 555-555-5555 / 123456) or ensure you have a recaptcha verifier configured.'
+      );
+      // Fallback for UI testing
+      navigation.navigate('OTP', { verificationId: 'dummy-id', phoneNumber: `+1${phone.replace(/\D/g, '')}` });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -71,11 +104,13 @@ export default function PhoneSignupScreen() {
           </Text>
         </View>
 
-        <Primary
-          label="Send code"
-          onPress={() => navigation.navigate('OTP')}
-          style={{ marginTop: 24 }}
-        />
+        <TouchableOpacity 
+          style={[styles.primaryBtn, (!phone || phone.length < 10) && styles.primaryBtnDisabled]} 
+          onPress={sendCode}
+          disabled={!phone || phone.length < 10 || loading}
+        >
+            {loading ? <ActivityIndicator color="#fff"/> : <Text style={styles.primaryLabel}>Send code</Text>}
+        </TouchableOpacity>
 
         <Ghost
           label="Continue with email instead"
@@ -162,4 +197,20 @@ const styles = StyleSheet.create({
     color: T.accentInk,
     lineHeight: 20,
   },
+  primaryBtn: {
+      height: 52,
+      borderRadius: 100,
+      backgroundColor: T.ink,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+  },
+  primaryBtnDisabled: {
+      opacity: 0.5,
+  },
+  primaryLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+  }
 });

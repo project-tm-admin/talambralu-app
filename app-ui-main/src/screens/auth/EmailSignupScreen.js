@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -8,7 +8,7 @@ import TopBar from '../../components/TopBar';
 import Field from '../../components/Field';
 import Primary from '../../components/Primary';
 import { auth } from '../../config/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 function EyeIcon({ visible }) {
   return (
@@ -47,40 +47,47 @@ const STRENGTH_LABELS = ['', 'WEAK', 'FAIR', 'GOOD', 'STRONG'];
 
 export default function EmailSignupScreen() {
   const navigation = useNavigation();
-  const [name, setName] = useState('Anika Talluri');
-  const [email, setEmail] = useState('anika.talluri@gmail.com');
-  const [password, setPassword] = useState('Str0ng!pwd');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [marketing, setMarketing] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const strength = getStrength(password);
-
-  const handleSignup = async () => {
-    if (strength < 4) {
-      Alert.alert('Weak Password', 'Please meet all requirements for a strong password.');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: name });
-      navigation.navigate('OTP');
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Signup Error', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const reqs = [
     { label: '8+ characters', done: password.length >= 8 },
     { label: 'One number', done: /\d/.test(password) },
     { label: 'Upper & lowercase', done: /[A-Z]/.test(password) && /[a-z]/.test(password) },
     { label: 'Symbol (!@#$)', done: /\W/.test(password) },
   ];
+
+  const handleCreateAccount = async () => {
+    if (!email || !password || !name) {
+      Alert.alert('Missing Info', 'Please fill in all fields.');
+      return;
+    }
+
+    if (strength < 2) {
+      Alert.alert('Weak Password', 'Please choose a stronger password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      const parts = name.trim().split(' ');
+      const firstName = parts[0];
+      const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      
+      navigation.navigate('NameDOB', { firstName, lastName });
+    } catch (err) {
+      console.error('Email Signup Error', err);
+      Alert.alert('Signup Failed', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -144,13 +151,15 @@ export default function EmailSignupScreen() {
           <Text style={styles.checkLabel}>Email me weekly handpicked matches and success stories.</Text>
         </TouchableOpacity>
 
-        {loading ? (
-          <ActivityIndicator size="large" color={T.accent} style={{ marginTop: 20 }} />
-        ) : (
-          <Primary label="Create account" onPress={handleSignup} style={{ marginTop: 20 }} />
-        )}
+        <TouchableOpacity 
+          style={[styles.primaryBtn, (!email || !password || !name || loading) && styles.primaryBtnDisabled]} 
+          onPress={handleCreateAccount}
+          disabled={!email || !password || !name || loading}
+        >
+            {loading ? <ActivityIndicator color="#fff"/> : <Text style={styles.primaryLabel}>Create account</Text>}
+        </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate('OTP')} style={styles.signInLink}>
+        <TouchableOpacity onPress={() => navigation.navigate('PhoneSignup')} style={styles.signInLink}>
           <Text style={styles.signInText}>Have an account? <Text style={styles.signInBold}>Sign in</Text></Text>
         </TouchableOpacity>
       </ScrollView>
@@ -195,4 +204,20 @@ const styles = StyleSheet.create({
   signInLink: { alignItems: 'center', marginTop: 20 },
   signInText: { fontSize: 14, color: T.mute },
   signInBold: { color: T.accent, fontWeight: '600' },
+  primaryBtn: {
+      height: 52,
+      borderRadius: 100,
+      backgroundColor: T.ink,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 20,
+  },
+  primaryBtnDisabled: {
+      opacity: 0.5,
+  },
+  primaryLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+  }
 });

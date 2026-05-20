@@ -1,287 +1,264 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View, Text, StyleSheet, TouchableOpacity, Image,
+  Dimensions, StatusBar,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Ellipse, G, Rect, Line } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
-import { T, FONTS } from '../../theme';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { FONTS } from '../../theme';
 
 const { width, height } = Dimensions.get('window');
 
-function BellOrnament() {
+const MAROON = '#6E1622';
+const INK2   = '#5C564F';
+const CREAM  = '#FCF4E2';
+
+const HERO_IMG        = require('../../../assets/welcome-extracted/00-hero-full.png');
+const FLORA_LEFT_IMG  = require('../../../assets/welcome-extracted/08-flora-bottom-left.png');
+const FLORA_RIGHT_IMG = require('../../../assets/welcome-extracted/09-flora-bottom-right.png');
+
+function CoupleHeartIcon() {
   return (
-    <Svg width={80} height={120} viewBox="0 0 80 120">
-      {/* Chain links */}
-      <G>
-        {[0, 14, 28].map(y => (
-          <Ellipse key={y} cx="40" cy={y + 5} rx="4" ry="7" fill="none" stroke={T.accentSoft} strokeWidth={2} />
-        ))}
-      </G>
-      {/* Bell body */}
-      <Path d="M20 60 Q15 80 10 95 L70 95 Q65 80 60 60 Q50 50 40 50 Q30 50 20 60Z" fill={T.accentSoft} />
-      {/* Bell rim */}
-      <Ellipse cx="40" cy="95" rx="30" ry="6" fill={T.accent} opacity={0.6} />
-      {/* Bell top */}
-      <Circle cx="40" cy="50" r="6" fill={T.accentSoft} />
-      {/* Bell clapper */}
-      <Line x1="40" y1="88" x2="40" y2="98" stroke={T.accent} strokeWidth={2} />
-      <Circle cx="40" cy="100" r="5" fill={T.accent} />
-      {/* Decorative dots */}
-      {[0, 60, 120, 180, 240, 300].map((angle, i) => {
-        const rad = (angle * Math.PI) / 180;
-        const x = 40 + 22 * Math.cos(rad);
-        const y = 78 + 12 * Math.sin(rad);
-        return <Circle key={i} cx={x} cy={y} r={2} fill={T.accent} opacity={0.6} />;
-      })}
+    <Svg width={26} height={24} viewBox="0 0 26 24" fill="none">
+      <Path d="M13 22C13 22 2 15 2 8C2 5.2 4.2 3 7 3C9.2 3 11.2 4.3 13 6.2C14.8 4.3 16.8 3 19 3C21.8 3 24 5.2 24 8C24 15 13 22 13 22Z"
+        fill="rgba(255,255,255,0.28)" stroke="rgba(255,255,255,0.6)" strokeWidth={1} />
+      <Circle cx="9.5"  cy="9.5" r="2.5" fill="white" opacity={0.9} />
+      <Path d="M6.5 15.5c0-1.7 1.3-3 3-3s3 1.3 3 3" stroke="white" strokeWidth={1.2} fill="none" strokeLinecap="round" opacity={0.9} />
+      <Circle cx="16.5" cy="9.5" r="2.5" fill="white" opacity={0.9} />
+      <Path d="M13.5 15.5c0-1.7 1.3-3 3-3s3 1.3 3 3" stroke="white" strokeWidth={1.2} fill="none" strokeLinecap="round" opacity={0.9} />
     </Svg>
   );
 }
 
-function MantapaBackdrop() {
+function PersonIcon() {
   return (
-    <Svg width={width} height={280} viewBox={`0 0 ${width} 280`}>
-      {/* Background arch */}
-      <Path
-        d={`M${width * 0.1} 280 Q${width * 0.1} 100 ${width * 0.5} 60 Q${width * 0.9} 100 ${width * 0.9} 280`}
-        fill={T.field}
-        opacity={0.5}
-      />
-      {/* Inner arch */}
-      <Path
-        d={`M${width * 0.2} 280 Q${width * 0.2} 120 ${width * 0.5} 80 Q${width * 0.8} 120 ${width * 0.8} 280`}
-        fill="none"
-        stroke={T.accentSoft}
-        strokeWidth={1.5}
-      />
-      {/* Pillars */}
-      <Rect x={width * 0.1 - 10} y={180} width={20} height={100} rx={4} fill={T.accentSoft} opacity={0.6} />
-      <Rect x={width * 0.9 - 10} y={180} width={20} height={100} rx={4} fill={T.accentSoft} opacity={0.6} />
-      {/* Decorative garland */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const t = i / 11;
-        const x = width * 0.1 + t * (width * 0.8);
-        const y = 160 + 20 * Math.sin(t * Math.PI);
-        return <Circle key={i} cx={x} cy={y} r={3} fill={T.accentSoft} />;
-      })}
-      {/* Rice grains decorative */}
-      {[0.2, 0.35, 0.5, 0.65, 0.8].map((pos, i) => (
-        <Ellipse key={i} cx={width * pos} cy={240} rx={3} ry={6} fill={T.accent} opacity={0.3} />
-      ))}
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="8" r="4" stroke={MAROON} strokeWidth={1.6} />
+      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={MAROON} strokeWidth={1.6} strokeLinecap="round" />
     </Svg>
   );
 }
 
-function CoupleIllustration() {
+function ArrowRight({ color }) {
   return (
-    <View style={styles.coupleWrap}>
-      <LinearGradient
-        colors={['#F7E8D4', '#E8C9A8', '#D4A574']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.couplePlaceholder}
-      />
-      <View style={styles.coupleOverlay}>
-        {/* Silhouette figures */}
-        <Svg width={180} height={120} viewBox="0 0 180 120">
-          {/* Left figure (woman) */}
-          <Circle cx="60" cy="25" r="18" fill="rgba(139,31,46,0.25)" />
-          <Path d="M42 50 Q60 45 78 50 L85 120 H35 Z" fill="rgba(139,31,46,0.2)" />
-          {/* Saree drape */}
-          <Path d="M42 50 Q38 80 40 120" stroke="rgba(139,31,46,0.3)" strokeWidth={2} fill="none" />
-          {/* Right figure (man) */}
-          <Circle cx="120" cy="22" r="20" fill="rgba(139,31,46,0.2)" />
-          <Rect x="102" y="48" width="36" height="72" rx={4} fill="rgba(139,31,46,0.18)" />
-        </Svg>
-      </View>
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 12h14M13 6l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+function HeartDivider() {
+  return (
+    <View style={styles.heartDividerWrap}>
+      <View style={styles.hairline} />
+      <Svg width={14} height={12} viewBox="0 0 14 12" style={{ marginHorizontal: 10 }}>
+        <Path d="M7 11C7 11 1 7 1 3.5C1 2 2.1 1 3.5 1C4.8 1 6 1.8 7 3C8 1.8 9.2 1 10.5 1C11.9 1 13 2 13 3.5C13 7 7 11 7 11Z"
+          fill={MAROON} opacity={0.55} />
+      </Svg>
+      <View style={styles.hairline} />
     </View>
-  );
-}
-
-function HeartIcon() {
-  return (
-    <Svg width={18} height={16} viewBox="0 0 18 16">
-      <Path
-        d="M9 15C9 15 1 9.5 1 5C1 2.8 2.8 1 5 1C6.5 1 7.8 1.8 9 3C10.2 1.8 11.5 1 13 1C15.2 1 17 2.8 17 5C17 9.5 9 15 9 15Z"
-        fill="#FFFFFF"
-        stroke="#FFFFFF"
-        strokeWidth={0.5}
-      />
-    </Svg>
   );
 }
 
 export default function WelcomeScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const heroHeight = Math.round(height * 0.62);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.topSection}>
-        <View style={styles.bellWrap}>
-          <BellOrnament />
-        </View>
-        <MantapaBackdrop />
-        <CoupleIllustration />
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+      {/* Hero — full painted scene, bell already inside */}
+      <View style={[styles.heroWrap, { height: heroHeight }]}>
+        <Image source={HERO_IMG} style={styles.heroImg} resizeMode="cover" />
       </View>
 
-      <View style={styles.textSection}>
-        <Text style={styles.teluguWordmark}>తలంబ్రాలు</Text>
+      {/* Wordmark + title + tagline */}
+      <View style={styles.textBlock}>
+        <Text style={styles.teluguScript}>❀ తలంభాలు ❀</Text>
         <Text style={styles.title}>Talambralu</Text>
-        <View style={styles.taglineRow}>
-          {[0, 1, 2].map(i => (
-            <View key={i} style={styles.riceGrain} />
-          ))}
-          <Text style={styles.tagline}>Telugu matches, made for life in the U.S.</Text>
-          {[0, 1, 2].map(i => (
-            <View key={i} style={styles.riceGrain} />
-          ))}
-        </View>
+        <Text style={styles.tagline}>Telugu matches, made for life in{'\n'}the U.S.</Text>
+        <HeartDivider />
       </View>
 
-      <View style={styles.ctaSection}>
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={() => navigation.navigate('EmailSignup')}
-          activeOpacity={0.85}
-        >
-          <HeartIcon />
-          <Text style={styles.primaryBtnText}>Create an account</Text>
+      {/* CTAs */}
+      <View style={[styles.ctaBlock, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('PhoneSignup')} activeOpacity={0.86}>
+          <View style={styles.primaryIconBox}><CoupleHeartIcon /></View>
+          <Text style={styles.primaryLabel}>Create an account</Text>
+          <ArrowRight color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.ghostBtn}
-          onPress={() => navigation.navigate('EmailSignup')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.ghostBtnText}>I already have an account</Text>
+        <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.navigate('PhoneSignup')} activeOpacity={0.72}>
+          <View style={styles.ghostIconBox}><PersonIcon /></View>
+          <Text style={styles.ghostLabel}>I already have an account</Text>
+          <ArrowRight color={MAROON} />
         </TouchableOpacity>
 
         <Text style={styles.terms}>
-          By continuing you agree to our{' '}
-          <Text style={styles.link}>Terms of Service</Text>
-          {' & '}
-          <Text style={styles.link}>Privacy Policy</Text>
+          {'By continuing you agree to our '}
+          <Text style={styles.termsLink}>Terms</Text>
+          {'  •  '}
+          <Text style={styles.termsLink}>Privacy</Text>
         </Text>
       </View>
-    </SafeAreaView>
+
+      {/* Corner flora — painted pink flowers */}
+      <Image source={FLORA_LEFT_IMG}  style={styles.floraLeft}  resizeMode="contain" pointerEvents="none" />
+      <Image source={FLORA_RIGHT_IMG} style={styles.floraRight} resizeMode="contain" pointerEvents="none" />
+    </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: {
+  root: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: CREAM,
   },
-  topSection: {
-    alignItems: 'center',
-    flex: 1,
+
+  // Hero
+  heroWrap: {
+    width,
     overflow: 'hidden',
+    backgroundColor: CREAM,
   },
-  bellWrap: {
-    position: 'absolute',
-    top: -10,
-    zIndex: 10,
+  heroImg: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // Text block
+  textBlock: {
     alignItems: 'center',
-  },
-  coupleWrap: {
-    position: 'absolute',
-    bottom: 0,
-    width: 220,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  couplePlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    borderTopLeftRadius: 110,
-    borderTopRightRadius: 110,
-    opacity: 0.7,
-  },
-  coupleOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textSection: {
-    alignItems: 'center',
-    paddingVertical: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
     paddingHorizontal: 24,
+    gap: 4,
   },
-  teluguWordmark: {
+  teluguScript: {
     fontFamily: FONTS.display,
-    fontSize: 22,
-    color: T.accent,
-    letterSpacing: 2,
-    marginBottom: 4,
+    fontSize: 15,
+    color: MAROON,
+    letterSpacing: 1.5,
+    marginBottom: 2,
   },
   title: {
     fontFamily: FONTS.display,
-    fontSize: 52,
-    color: T.ink,
-    letterSpacing: 1,
-    lineHeight: 60,
-  },
-  taglineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  riceGrain: {
-    width: 6,
-    height: 10,
-    borderRadius: 3,
-    backgroundColor: T.accent,
-    opacity: 0.5,
+    fontSize: 44,
+    fontWeight: '500',
+    color: MAROON,
+    letterSpacing: -0.8,
+    lineHeight: 52,
+    marginTop: 2,
   },
   tagline: {
     fontSize: 14,
-    color: T.mute,
+    color: INK2,
     fontStyle: 'italic',
     textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 260,
   },
-  ctaSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    gap: 8,
-  },
-  primaryBtn: {
-    height: 56,
-    backgroundColor: T.accent,
-    borderRadius: 100,
+  heartDividerWrap: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
+    width: width - 160,
+    marginTop: 6,
+  },
+  hairline: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: MAROON,
+    opacity: 0.25,
+  },
+
+  // CTAs
+  ctaBlock: {
+    flex: 1,
+    paddingHorizontal: 22,
+    justifyContent: 'flex-end',
+    paddingBottom: 12,
     gap: 10,
   },
-  primaryBtnText: {
+  primaryBtn: {
+    height: 52,
+    borderRadius: 100,
+    backgroundColor: MAROON,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    shadowColor: MAROON,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  primaryIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryLabel: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#fff',
   },
   ghostBtn: {
     height: 52,
     borderRadius: 100,
-    borderWidth: 1.5,
-    borderColor: T.hair2,
+    borderWidth: 1.2,
+    borderColor: MAROON,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    backgroundColor: 'transparent',
+  },
+  ghostIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ghostBtnText: {
+  ghostLabel: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 15,
     fontWeight: '500',
-    color: T.ink,
+    color: '#1A1A1A',
   },
   terms: {
-    fontSize: 12,
-    color: T.mute,
+    fontSize: 11.5,
+    color: INK2,
     textAlign: 'center',
-    marginTop: 12,
     lineHeight: 18,
   },
-  link: {
-    color: T.accent,
-    textDecorationLine: 'underline',
+  termsLink: {
+    color: MAROON,
+    fontWeight: '700',
+  },
+
+  // Flora corners
+  floraLeft: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 90,
+    height: 90,
+  },
+  floraRight: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 90,
+    height: 90,
   },
 });

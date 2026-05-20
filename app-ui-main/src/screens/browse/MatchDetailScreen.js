@@ -1,24 +1,14 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import PhotoPlaceholder from '../../components/PhotoPlaceholder';
 import { VerifyDot } from '../../components/VerifyBadge';
+import { api } from '../../api/client';
 
 const { width } = Dimensions.get('window');
-
-const BASICS = [
-  { label: 'PROFESSION', value: 'Senior SWE at Salesforce' },
-  { label: 'EDUCATION', value: "MS Computer Science" },
-  { label: 'VISA', value: 'H-1B ✓ Verified' },
-  { label: 'INCOME', value: '$185K / year' },
-  { label: 'RELIGION', value: 'Hindu' },
-  { label: 'SUB-CASTE', value: 'Kamma' },
-  { label: 'GOTHRAM', value: 'Kashyapa' },
-  { label: 'BIRTH STAR', value: 'Mrigashira · Mithuna' },
-];
 
 const WAVEFORM = [20, 32, 44, 28, 40, 24, 36, 48, 30, 22, 42, 34, 26, 38, 18, 44, 28, 36, 24, 40];
 
@@ -74,15 +64,74 @@ function MicIcon() {
   );
 }
 
+const calculateAge = (dobString) => {
+  if (!dobString) return '';
+  const dob = new Date(dobString);
+  const diff = Date.now() - dob.getTime();
+  const ageDate = new Date(diff);
+  return Math.abs(ageDate.getUTCFullYear() - 1970);
+};
+
 export default function MatchDetailScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const profileId = route.params?.profileId;
+
+  useEffect(() => {
+    if (profileId) {
+      fetchProfile();
+    }
+  }, [profileId]);
+
+  const fetchProfile = async () => {
+    try {
+      const data = await api.get(`/v1/profiles/${profileId}`);
+      setProfile(data);
+    } catch (err) {
+      console.error('Fetch Profile Details Error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={T.accent} />
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text>Profile not found.</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={{color: T.accent, marginTop: 10}}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const age = calculateAge(profile.dob);
+  const basics = [
+    { label: 'GENDER', value: profile.gender },
+    { label: 'BIRTHDAY', value: new Date(profile.dob).toLocaleDateString() },
+    { label: 'VERIFIED', value: profile.isFaceVerified ? 'YES' : 'NO' },
+    { label: 'INCOME', value: profile.incomeBracket || 'Not shared' },
+    { label: 'EDUCATION', value: 'Verified upon request' },
+    { label: 'RELIGION', value: 'Not specified' },
+  ];
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero photo */}
         <View style={styles.heroWrap}>
-          <PhotoPlaceholder width={width} height={380} label="Anjali R." style={{ borderRadius: 0 }} />
+          <PhotoPlaceholder width={width} height={380} label={profile.fullName} style={{ borderRadius: 0 }} />
 
           {/* Overlay buttons */}
           <SafeAreaView style={styles.overlaySafe} edges={['top']}>
@@ -103,7 +152,7 @@ export default function MatchDetailScreen() {
 
           {/* Photo dots */}
           <View style={styles.photoDots}>
-            {[0, 1, 2, 3].map(i => (
+            {[0].map(i => (
               <View key={i} style={[styles.photoDot, i === 0 && styles.photoDotActive]} />
             ))}
           </View>
@@ -112,48 +161,27 @@ export default function MatchDetailScreen() {
         <View style={styles.content}>
           {/* Name + verify */}
           <View style={styles.nameRow}>
-            <Text style={styles.name}>Anjali Reddy, 28</Text>
-            <VerifyDot size={16} />
+            <Text style={styles.name}>{profile.fullName}, {age}</Text>
+            {profile.isFaceVerified && <VerifyDot size={16} />}
           </View>
 
-          {/* Quote prompt */}
+          {/* Quote prompt - Placeholder since backend doesn't have prompts yet */}
           <View style={styles.promptCard}>
-            <Text style={styles.promptQ}>What does "home" mean to you?</Text>
+            <Text style={styles.promptQ}>About {profile.fullName.split(' ')[0]}</Text>
             <Text style={styles.promptA}>
-              "Home is Vizag sunsets, chai on the porch with Amma, and a Sunday morning run along the Bay Trail. I've learned to carry home with me wherever I go."
+              "Looking for a meaningful connection with someone who shares similar values and life goals. Feel free to reach out to learn more about me!"
             </Text>
-          </View>
-
-          {/* Voice intro */}
-          <View style={styles.voiceCard}>
-            <View style={styles.voiceHeader}>
-              <MicIcon />
-              <Text style={styles.voiceTitle}>Voice intro · 0:35</Text>
-            </View>
-            <View style={styles.waveRow}>
-              {WAVEFORM.map((h, i) => (
-                <View key={i} style={[styles.waveBar, { height: h, backgroundColor: i < 10 ? T.accent : T.hair2 }]} />
-              ))}
-            </View>
           </View>
 
           {/* The basics */}
           <Text style={styles.sectionTitle}>The basics</Text>
           <View style={styles.basicsGrid}>
-            {BASICS.map((b, i) => (
+            {basics.map((b, i) => (
               <View key={i} style={styles.basicItem}>
                 <Text style={styles.basicLabel}>{b.label}</Text>
                 <Text style={styles.basicValue}>{b.value}</Text>
               </View>
             ))}
-          </View>
-
-          {/* Family */}
-          <Text style={styles.sectionTitle}>Family</Text>
-          <View style={styles.familyCard}>
-            <Text style={styles.familyText}>
-              Father is a retired civil engineer; mother runs a boutique in Vizag. One younger sister, Preethi, who is doing her MBA in Austin. Family is based in Visakhapatnam and visits the US every summer.
-            </Text>
           </View>
 
           <View style={{ height: 120 }} />
@@ -162,7 +190,7 @@ export default function MatchDetailScreen() {
 
       {/* Sticky action bar */}
       <SafeAreaView style={styles.stickyBar} edges={['bottom']}>
-        <TouchableOpacity style={styles.stickyPass}>
+        <TouchableOpacity style={styles.stickyPass} onPress={() => navigation.goBack()}>
           <XIcon />
           <Text style={styles.stickyPassText}>Pass</Text>
         </TouchableOpacity>
@@ -180,6 +208,7 @@ export default function MatchDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heroWrap: { position: 'relative' },
   overlaySafe: {
     position: 'absolute',
@@ -256,35 +285,6 @@ const styles = StyleSheet.create({
     color: T.ink2,
     lineHeight: 26,
   },
-  voiceCard: {
-    borderWidth: 1,
-    borderColor: T.hair2,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 20,
-  },
-  voiceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  voiceTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: T.ink,
-  },
-  waveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    height: 48,
-  },
-  waveBar: {
-    flex: 1,
-    borderRadius: 2,
-    minHeight: 3,
-  },
   sectionTitle: {
     fontFamily: FONTS.display,
     fontSize: 20,
@@ -316,17 +316,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: T.ink2,
-  },
-  familyCard: {
-    backgroundColor: T.field,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  familyText: {
-    fontSize: 14,
-    color: T.ink2,
-    lineHeight: 22,
   },
   stickyBar: {
     position: 'absolute',

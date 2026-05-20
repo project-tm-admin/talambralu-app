@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../../theme';
+import { api } from '../../api/client';
+import { auth } from '../../config/firebase';
 
 const { width } = Dimensions.get('window');
 const THUMB = (width - 48 - 32) / 5;
@@ -78,15 +80,72 @@ function VerifyAction() {
   return <Text style={styles.verifyAction}>VERIFY</Text>;
 }
 
-const VERIFICATIONS = [
-  { label: 'FACE VERIFICATION', title: 'Selfie matched profile photo', badge: 'verified' },
-  { label: 'VISA STATUS · H-1B', title: 'USCIS document on file', badge: 'verified' },
-  { label: 'INCOME RANGE', title: '$150K–$200K · paystub u...', badge: 'review' },
-  { label: 'EDUCATION · MS, CARNEGIE MELLON', title: 'Tap to upload transcript', badge: 'action' },
-];
+const calculateAge = (dobString) => {
+  if (!dobString) return '';
+  const dob = new Date(dobString);
+  const diff = Date.now() - dob.getTime();
+  const ageDate = new Date(diff);
+  return Math.abs(ageDate.getUTCFullYear() - 1970);
+};
 
 export default function MyProfileScreen() {
   const navigation = useNavigation();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const data = await api.get('/v1/profiles/me');
+      setProfile(data);
+    } catch (err) {
+      console.error('Fetch Profile Error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+    } catch (err) {
+      Alert.alert('Error', 'Failed to log out.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.safe, styles.center]}>
+        <ActivityIndicator size="large" color={T.accent} />
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>No profile found.</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+             <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const initials = profile.fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+  const age = calculateAge(profile.dob);
+
+  const verifications = [
+    { label: 'FACE VERIFICATION', title: profile.isFaceVerified ? 'Selfie matched profile photo' : 'Identity check required', badge: profile.isFaceVerified ? 'verified' : 'action' },
+    { label: 'WORK VERIFICATION', title: profile.isWorkVerified ? 'Employment confirmed' : 'Verify your workplace', badge: profile.isWorkVerified ? 'verified' : 'action' },
+    { label: 'INCOME RANGE', title: profile.isIncomeVerified ? 'Verified income bracket' : 'Submit paystub for verification', badge: profile.isIncomeVerified ? 'verified' : 'action' },
+  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -98,8 +157,8 @@ export default function MyProfileScreen() {
           </Svg>
         </TouchableOpacity>
         <Text style={styles.topTitle}>MY PROFILE</Text>
-        <TouchableOpacity style={styles.topBtn}>
-          <DotsIcon />
+        <TouchableOpacity style={styles.topBtn} onPress={handleLogout}>
+          <Text style={{color: T.accent, fontSize: 10, fontWeight: '700'}}>LOGOUT</Text>
         </TouchableOpacity>
       </View>
 
@@ -108,7 +167,7 @@ export default function MyProfileScreen() {
         <View style={styles.identityRow}>
           <View style={styles.avatarWrap}>
             <LinearGradient colors={['#D4A574', '#C4856A', '#A86050']} style={styles.avatar}>
-              <Text style={styles.avatarInitials}>AT</Text>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </LinearGradient>
             <TouchableOpacity style={styles.cameraBtn}>
               <CameraEditIcon />
@@ -116,71 +175,20 @@ export default function MyProfileScreen() {
           </View>
           <View style={styles.identityText}>
             <View style={styles.nameRow}>
-              <Text style={styles.name}>Anika Talluri</Text>
-              <Svg width={18} height={18} viewBox="0 0 18 18">
-                <Circle cx="9" cy="9" r="9" fill={T.verify} />
-                <Path d="M5 9l2.5 2.5L13 6" stroke="white" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
+              <Text style={styles.name}>{profile.fullName}</Text>
+              {profile.isFaceVerified && (
+                <Svg width={18} height={18} viewBox="0 0 18 18">
+                  <Circle cx="9" cy="9" r="9" fill={T.verify} />
+                  <Path d="M5 9l2.5 2.5L13 6" stroke="white" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              )}
             </View>
-            <Text style={styles.identitySub}>29 · San Francisco · Software Engineer</Text>
-            <View style={styles.premiumBadge}>
-              <StarIcon />
-              <Text style={styles.premiumText}>PREMIUM</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Profile completion */}
-        <View style={styles.completionCard}>
-          <View style={styles.completionHeader}>
-            <Text style={styles.completionLabel}>Profile completion</Text>
-            <Text style={styles.completionPct}>84%</Text>
-          </View>
-          <View style={styles.completionTrack}>
-            <View style={styles.completionFill} />
-          </View>
-          <Text style={styles.completionHint}>Add 2 more photos and a voice note to reach 100%</Text>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {[
-            { value: '128', label: 'VISITORS' },
-            { value: '47', label: 'INTERESTS' },
-            { value: '12', label: 'SHORTLISTS' },
-          ].map((s, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.statBox, i === 0 && styles.statBoxActive]}
-              onPress={i === 0 ? () => navigation.navigate('ProfileVisitors') : undefined}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.statValue}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Photos */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>PHOTOS</Text>
-            <TouchableOpacity><Text style={styles.sectionAction}>Manage</Text></TouchableOpacity>
-          </View>
-          <View style={styles.photosRow}>
-            {/* Main photo */}
-            <View style={styles.mainThumb}>
-              <LinearGradient colors={['#D4A574', '#A86050']} style={StyleSheet.absoluteFill} />
-              <View style={styles.mainBadge}><Text style={styles.mainBadgeText}>MAIN</Text></View>
-            </View>
-            {/* Empty slots */}
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} style={styles.emptyThumb} />
-            ))}
-            {/* Add */}
-            <TouchableOpacity style={styles.addThumb}>
-              <PlusIcon />
-            </TouchableOpacity>
+            <Text style={styles.identitySub}>{age} · US Resident · {profile.gender}</Text>
+            {profile.isAdmin && (
+              <View style={[styles.premiumBadge, { backgroundColor: T.ink }]}>
+                <Text style={styles.premiumText}>ADMIN</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -193,8 +201,8 @@ export default function MyProfileScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.verificationsList}>
-            {VERIFICATIONS.map((v, i) => (
-              <TouchableOpacity key={i} style={[styles.verifRow, i < VERIFICATIONS.length - 1 && styles.verifRowBorder]} activeOpacity={0.7}>
+            {verifications.map((v, i) => (
+              <TouchableOpacity key={i} style={[styles.verifRow, i < verifications.length - 1 && styles.verifRowBorder]} activeOpacity={0.7}>
                 <View style={styles.verifContent}>
                   <Text style={styles.verifLabel}>{v.label}</Text>
                   <Text style={styles.verifTitle}>{v.title}</Text>
@@ -215,12 +223,10 @@ export default function MyProfileScreen() {
             <TouchableOpacity><Text style={styles.sectionAction}>Edit</Text></TouchableOpacity>
           </View>
           {[
-            { label: 'Religion', value: 'Hindu · Kamma' },
-            { label: 'Education', value: 'MS · Computer Science · UT Austin' },
-            { label: 'Visa', value: 'H-1B' },
-            { label: 'Location', value: 'Sunnyvale, CA · Bay Area' },
-            { label: 'Height', value: "5'6\"" },
-            { label: 'Diet', value: 'Vegetarian' },
+            { label: 'Gender', value: profile.gender },
+            { label: 'Birthday', value: new Date(profile.dob).toLocaleDateString() },
+            { label: 'Income', value: profile.incomeBracket || 'Not shared' },
+            { label: 'Face Verified', value: profile.isFaceVerified ? 'Yes' : 'No' },
           ].map((d, i, arr) => (
             <View key={i} style={[styles.detailRow, i < arr.length - 1 && styles.detailRowBorder]}>
               <Text style={styles.detailLabel}>{d.label}</Text>
@@ -237,6 +243,10 @@ export default function MyProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: T.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 16, color: T.mute, marginBottom: 16 },
+  logoutBtn: { padding: 12, backgroundColor: T.accent, borderRadius: 8 },
+  logoutText: { color: '#fff', fontWeight: '600' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,38 +308,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   premiumText: { fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
-  completionCard: {
-    backgroundColor: T.field,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-  },
-  completionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  completionLabel: { fontSize: 14, fontWeight: '600', color: T.ink },
-  completionPct: { fontSize: 14, fontWeight: '700', color: T.accent },
-  completionTrack: {
-    height: 4, backgroundColor: T.hair2, borderRadius: 2, marginBottom: 8,
-  },
-  completionFill: {
-    width: '84%', height: '100%', backgroundColor: T.accent, borderRadius: 2,
-  },
-  completionHint: { fontSize: 12, color: T.mute, lineHeight: 18 },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: T.field,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statBoxActive: {},
-  statValue: { fontFamily: FONTS.display, fontSize: 22, color: T.accent, fontWeight: '700' },
-  statLabel: { fontFamily: FONTS.mono, fontSize: 9, letterSpacing: 1, color: T.mute },
   section: { marginBottom: 24 },
   sectionHeader: {
     flexDirection: 'row',
@@ -344,46 +322,6 @@ const styles = StyleSheet.create({
     color: T.mute,
   },
   sectionAction: { fontSize: 13, color: T.accent, fontWeight: '600' },
-  photosRow: {
-    flexDirection: 'row',
-    gap: 6,
-    alignItems: 'center',
-  },
-  mainThumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  mainBadge: {
-    position: 'absolute',
-    bottom: 4,
-    left: 4,
-    backgroundColor: T.accent,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  mainBadgeText: { fontSize: 8, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
-  emptyThumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-    backgroundColor: T.field,
-    borderWidth: 1,
-    borderColor: T.hair,
-  },
-  addThumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: T.hair2,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   verificationsList: {
     borderWidth: 1,
     borderColor: T.hair,

@@ -1,30 +1,53 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import TopBar from '../../components/TopBar';
 import Primary from '../../components/Primary';
+import { auth } from '../../config/firebase';
+import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
 
 function EmailIcon() {
   return (
-    <Svg width={40} height={40} viewBox="0 0 40 40" fill="none">
-      <Rect width={40} height={40} rx={12} fill={T.accentSoft} />
-      <Path d="M8 13h24v16H8V13z" stroke={T.accentInk} strokeWidth={1.5} rx={2} fill="none" />
-      <Path d="M8 13l12 10L32 13" stroke={T.accentInk} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width={64} height={64} viewBox="0 0 64 64" fill="none">
+      <Rect width={64} height={64} rx={16} fill="#C2EDE7" />
+      <Path d="M14 22h36v22H14V22z" stroke="#2E8B7A" strokeWidth={2} fill="none" strokeLinejoin="round" />
+      <Path d="M14 22l18 14 18-14" stroke="#2E8B7A" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
-const MOCK_OTP = ['8', '4', '2', '1', '', ''];
-
 export default function OTPScreen() {
   const navigation = useNavigation();
-  const [otp, setOtp] = useState(MOCK_OTP);
+  const route = useRoute();
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
   const inputs = useRef([]);
+  const [activeInput, setActiveInput] = useState(0);
+
+  const verificationId = route.params?.verificationId;
+  const phoneNumber = route.params?.phoneNumber;
 
   const allFilled = otp.every(d => d !== '');
+
+  const verifyCode = async () => {
+    if (!allFilled || !verificationId) return;
+
+    setLoading(true);
+    const code = otp.join('');
+    try {
+      const credential = PhoneAuthProvider.credential(verificationId, code);
+      await signInWithCredential(auth, credential);
+      navigation.navigate('NameDOB');
+    } catch (err) {
+      console.error('OTP Verification Error', err);
+      Alert.alert('Verification Failed', err.message || 'Invalid code.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -34,10 +57,10 @@ export default function OTPScreen() {
           <EmailIcon />
         </View>
 
-        <Text style={styles.title}>Check your{'\n'}email</Text>
+        <Text style={styles.title}>Enter{'\n'}Code</Text>
         <Text style={styles.subtitle}>
           We sent a 6-digit code to{'\n'}
-          <Text style={styles.emailHint}>anika@example.com</Text>
+          <Text style={styles.emailHint}>{phoneNumber || 'your phone'}</Text>
         </Text>
 
         <View style={styles.otpRow}>
@@ -47,24 +70,33 @@ export default function OTPScreen() {
               style={[
                 styles.otpBox,
                 digit ? styles.otpFilled : styles.otpEmpty,
-                i === 4 && styles.otpCursor,
+                activeInput === i && styles.otpCursor,
               ]}
             >
               <TextInput
                 ref={r => (inputs.current[i] = r)}
                 style={styles.otpInput}
                 value={digit}
+                onFocus={() => setActiveInput(i)}
                 onChangeText={v => {
                   const next = [...otp];
                   next[i] = v.slice(-1);
                   setOtp(next);
-                  if (v && i < 5) inputs.current[i + 1]?.focus();
+                  if (v && i < 5) {
+                    inputs.current[i + 1]?.focus();
+                    setActiveInput(i+1);
+                  }
+                }}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === 'Backspace' && !otp[i] && i > 0) {
+                     inputs.current[i - 1]?.focus();
+                     setActiveInput(i-1);
+                  }
                 }}
                 keyboardType="number-pad"
                 maxLength={1}
                 selectTextOnFocus
               />
-              {i === 4 && !digit && <View style={styles.cursor} />}
             </View>
           ))}
         </View>
@@ -74,16 +106,21 @@ export default function OTPScreen() {
           <Text style={styles.countdown}>00:42</Text>
         </View>
 
-        <TouchableOpacity style={styles.altLink}>
-          <Text style={styles.altText}>Use a different email address</Text>
+        <TouchableOpacity style={styles.altLink} onPress={() => navigation.goBack()}>
+          <Text style={styles.altText}>Use a different phone number</Text>
         </TouchableOpacity>
 
-        <Primary
-          label="Verify & continue"
-          onPress={() => navigation.navigate('NameDOB')}
-          disabled={!allFilled}
-          style={{ marginTop: 24 }}
-        />
+        <TouchableOpacity
+          style={[styles.primaryBtn, !allFilled && styles.primaryBtnDisabled]}
+          onPress={verifyCode}
+          disabled={!allFilled || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+             <Text style={styles.primaryLabel}>Verify & continue</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,14 +181,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  cursor: {
-    position: 'absolute',
-    bottom: 12,
-    width: 2,
-    height: 24,
-    backgroundColor: T.accent,
-    borderRadius: 1,
-  },
   resendRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -171,4 +200,20 @@ const styles = StyleSheet.create({
     color: T.accent,
     textDecorationLine: 'underline',
   },
+  primaryBtn: {
+      height: 52,
+      borderRadius: 100,
+      backgroundColor: T.ink,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+  },
+  primaryBtnDisabled: {
+      opacity: 0.5,
+  },
+  primaryLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+  }
 });
