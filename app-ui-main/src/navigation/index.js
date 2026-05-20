@@ -30,6 +30,7 @@ import AboutScreen from '../screens/profile/AboutScreen';
 import PreferencesScreen from '../screens/profile/PreferencesScreen';
 import VerifyScreen from '../screens/profile/VerifyScreen';
 import FaceVerificationScreen from '../screens/verification/FaceVerificationScreen';
+import DocumentUploadScreen from '../screens/verification/DocumentUploadScreen';
 import MyProfileScreen from '../screens/profile/MyProfileScreen';
 import VerificationsScreen from '../screens/profile/VerificationsScreen';
 import ProfileVisitorsScreen from '../screens/profile/ProfileVisitorsScreen';
@@ -187,6 +188,7 @@ export default function Navigation() {
         <Stack.Screen name="Preferences" component={PreferencesScreen} />
         <Stack.Screen name="Verify" component={VerifyScreen} />
         <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
+        <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
 
         {/* Main app */}
         <Stack.Screen name="MainTabs" component={MainTabs} />

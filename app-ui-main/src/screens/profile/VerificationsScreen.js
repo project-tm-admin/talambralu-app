@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
+import { api } from '../../api/client';
 
 function BackArrow() {
   return (
@@ -142,6 +143,18 @@ const ITEMS = [
 
 export default function VerificationsScreen() {
   const navigation = useNavigation();
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    api.get('/v1/profiles/me').then(setProfile).catch(() => {});
+  }, []);
+
+  const handleActionPress = (title) => {
+    if (title === 'Income range' || title === 'Visa status') {
+      const type = title === 'Income range' ? 'INCOME' : 'VISA';
+      navigation.navigate('DocumentUpload', { documentType: type });
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -171,6 +184,11 @@ export default function VerificationsScreen() {
         {/* Verification items */}
         {ITEMS.map((item, i) => {
           const IconComp = item.icon;
+          let badge = item.badge;
+          if (profile !== null) {
+            if (item.title === 'Income range') badge = profile.is_income_verified ? 'verified' : 'action';
+            if (item.title === 'Visa status') badge = profile.visa_status_id ? 'verified' : 'action';
+          }
           return (
             <View key={i} style={styles.verifCard}>
               <View style={styles.verifTop}>
@@ -181,13 +199,13 @@ export default function VerificationsScreen() {
                   <Text style={styles.verifTitle}>{item.title}</Text>
                   <Text style={styles.verifSub1}>{item.sub1}</Text>
                 </View>
-                {item.badge === 'verified' && <VerifiedBadge />}
-                {item.badge === 'review' && <InReviewBadge />}
-                {item.badge === 'action' && <VerifyButton />}
+                {badge === 'verified' && <VerifiedBadge />}
+                {badge === 'review' && <InReviewBadge />}
+                {badge === 'action' && <VerifyButton onPress={() => handleActionPress(item.title)} />}
               </View>
               <Text style={styles.verifSub2}>{item.sub2}</Text>
               {item.cta && (
-                <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.8} onPress={() => handleActionPress(item.title)}>
                   <Text style={styles.ctaBtnText}>{item.cta}</Text>
                 </TouchableOpacity>
               )}
