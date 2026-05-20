@@ -69,6 +69,10 @@ class ApiClient {
   delete(endpoint, options = {}) {
     return this.request(endpoint, { ...options, method: 'DELETE' });
   }
+
+  createPresignedPost(purpose, contentType) {
+    return this.post('/v1/upload/presigned-post', { purpose, contentType });
+  }
 }
 
 export const api = new ApiClient();

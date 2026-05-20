@@ -10,7 +10,22 @@
       "image": "./assets/icon.png",
       "backgroundColor": "#FFFFFF"
     },
-    "ios": { "supportsTablet": false },
-    "android": { "adaptiveIcon": { "backgroundColor": "#FFFFFF" } }
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Talambralu to access your camera for liveness verification.",
+          "microphonePermission": "Allow Talambralu to access your microphone."
+        }
+      ]
+    ]
   }
 }
