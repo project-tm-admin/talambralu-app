@@ -3,7 +3,7 @@
 > **Note:** This document outlines the active frontend integration phase. It depends on the backend infrastructure and API which is already **100% complete**.
 > For historical backend implementation details, please see [`sprint-status.md`](./sprint-status.md).
 
-*Last Updated: 2026-05-21 (Story F1.3 code review complete — all patches applied)*
+*Last Updated: 2026-05-21 (F2.1 code review — 9 patches applied; B1.1 + B1.2 backend stories added to unblock F2.1)*
 
 ## Overview
 This document outlines the sequenced implementation plan for integrating the React Native (Expo) frontend with the existing NestJS backend architecture.
@@ -26,13 +26,23 @@ This document outlines the sequenced implementation plan for integrating the Rea
 
 ---
 
+## Backend Additions (Unblocking F2.1)
+**Objective:** Implement missing backend endpoints discovered during F2.1 code review.
+
+| Order | ID | Task | Dependency | Est. Scope | Status |
+| :---: | :--- | :--- | :--- | :--- | :--- |
+| — | `Story B1.1` | PASS endpoint (`POST /v1/matches/pass`) + discovery filter | None | Small | `BACKLOG` |
+| — | `Story B1.2` | Shortlist endpoints (`POST/DELETE/GET /v1/shortlist`) | None | Small | `BACKLOG` |
+
+---
+
 ## Epic 2: Core Product Loop Integration
 **Objective:** Enable the double opt-in matching system and real-time communication on the frontend.
 
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| 4 | `Story F2.1` | Match State Machine (Pass, Save, Like actions) | None | Medium | `BACKLOG` |
-| 5 | `Story F2.2` | Matches & Shortlist Filtering / Sorting | `Story F2.1` | Small | `BACKLOG` |
+| 4 | `Story F2.1` | Match State Machine (Pass, Save, Like actions) | `B1.1`, `B1.2` | Medium | `IN-PROGRESS` |
+| 5 | `Story F2.2` | Matches & Shortlist Filtering / Sorting | `Story F2.1`, `B1.2` | Small | `BACKLOG` |
 | 6 | `Story F2.3` | WebSocket Connection Setup (Socket.io Client) | None | Medium | `BACKLOG` |
 | 7 | `Story F2.4` | Real-time Chat UI Integration (Send/Receive) | `Story F2.3`, `F2.1` | Large | `BACKLOG` |
 

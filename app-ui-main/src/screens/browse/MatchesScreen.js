@@ -146,8 +146,15 @@ export default function MatchesScreen() {
     setCurrentIndex(nextIndex);
   };
 
-  const advanceTo = (next) => {
+  const advanceTo = (next, actionType) => {
     if (next < 0 || next >= matches.length) return;
+    if (actionType === 'LIKE') {
+      const currentMatch = matches[currentIndex];
+      if (currentMatch) {
+        api.post('/v1/interests', { receiverId: currentMatch.id })
+          .catch(err => console.error('Failed to send interest:', err));
+      }
+    }
     commitSwipe(next, next > indexRef.current ? 1 : -1);
   };
 
@@ -323,7 +330,7 @@ export default function MatchesScreen() {
       <View style={styles.actionRow}>
         <TouchableOpacity
           style={styles.actionBtn}
-          onPress={() => advanceTo(currentIndex + 1)}
+          onPress={() => advanceTo(currentIndex + 1, 'PASS')}
           activeOpacity={0.8}
         >
           <View style={[styles.actionCircle, styles.passCircle]}>
@@ -336,7 +343,7 @@ export default function MatchesScreen() {
 
         <TouchableOpacity
           style={styles.actionBtn}
-          onPress={() => advanceTo(currentIndex + 1)}
+          onPress={() => advanceTo(currentIndex + 1, 'SAVE')}
           activeOpacity={0.8}
         >
           <View style={[styles.actionCircle, styles.saveCircle]}>
@@ -352,7 +359,7 @@ export default function MatchesScreen() {
 
         <TouchableOpacity
           style={styles.actionBtn}
-          onPress={() => advanceTo(currentIndex + 1)}
+          onPress={() => advanceTo(currentIndex + 1, 'LIKE')}
           activeOpacity={0.8}
         >
           <View style={[styles.actionCircle, styles.heartCircle]}>

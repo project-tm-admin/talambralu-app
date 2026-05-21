@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -77,6 +77,7 @@ export default function MatchDetailScreen() {
   const route = useRoute();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const profileId = route.params?.profileId;
 
@@ -125,6 +126,26 @@ export default function MatchDetailScreen() {
     { label: 'EDUCATION', value: 'Verified upon request' },
     { label: 'RELIGION', value: 'Not specified' },
   ];
+
+  const handleAction = async (actionType) => {
+    if (!profileId) return;
+    if (actionType === 'LIKE') {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      try {
+        await api.post('/v1/interests', { receiverId: profileId });
+        navigation.goBack();
+      } catch (error) {
+        console.error('Failed to send interest:', error);
+        Alert.alert('Error', 'Failed to send interest. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // PASS and SAVE: UI-only navigation (backend endpoints pending — see F2.1 blocker)
+      navigation.goBack();
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -190,15 +211,15 @@ export default function MatchDetailScreen() {
 
       {/* Sticky action bar */}
       <SafeAreaView style={styles.stickyBar} edges={['bottom']}>
-        <TouchableOpacity style={styles.stickyPass} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.stickyPass} onPress={() => handleAction('PASS')}>
           <XIcon />
           <Text style={styles.stickyPassText}>Pass</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.stickyBookmark}>
+        <TouchableOpacity style={styles.stickyBookmark} onPress={() => handleAction('SAVE')}>
           <BookmarkIcon />
           <Text style={styles.stickyBookmarkText}>Shortlist</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.stickyInterest}>
+        <TouchableOpacity style={[styles.stickyInterest, isSubmitting && { opacity: 0.6 }]} onPress={() => handleAction('LIKE')} disabled={isSubmitting}>
           <Text style={styles.stickyInterestText}>Send interest</Text>
         </TouchableOpacity>
       </SafeAreaView>
