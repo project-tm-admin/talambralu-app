@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Delete, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Delete, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ProfileService } from './profile.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
@@ -13,6 +13,14 @@ export class ProfileController {
     @Body() dto: UpsertProfileDto,
   ) {
     return this.profileService.upsertProfile(user.uid, dto);
+  }
+
+  @Patch('photos')
+  async updatePhotos(
+    @CurrentUser() user: { uid: string },
+    @Body('photos') photos: string[],
+  ) {
+    return this.profileService.updatePhotos(user.uid, photos || []);
   }
 
   @Get('me')

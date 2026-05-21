@@ -51,6 +51,13 @@ export class ProfileService implements OnModuleInit {
     });
   }
 
+  async updatePhotos(userId: string, photos: string[]) {
+    return this.prisma.profile.update({
+      where: { userId },
+      data: { photos },
+    });
+  }
+
   async getProfileByUserId(userId: string) {
     return this.prisma.profile.findUnique({
       where: { userId },

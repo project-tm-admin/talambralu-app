@@ -17,7 +17,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 1 | `Story F1.1` | Face Verification (Camera UI & S3 Presigned Upload) | None | Medium | `DONE` |
 | 2 | `Story F1.2` | Income/Visa Document Upload & Polling | `Story F1.1` | Medium | `DONE` |
-| 3 | `Story F1.3` | User Profile Photo Management (CRUD) | `Story F1.1` | Medium | `BACKLOG` |
+| 3 | `Story F1.3` | User Profile Photo Management (CRUD) | `Story F1.1` | Medium | `REVIEW` |
 
 **Epic Checkpoint:**
 - [ ] User can take a selfie and upload it to S3 from the mobile app.
