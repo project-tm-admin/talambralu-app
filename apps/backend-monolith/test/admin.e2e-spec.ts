@@ -11,7 +11,8 @@ jest.mock('firebase-admin', () => ({
   auth: jest.fn().mockReturnValue({
     verifyIdToken: jest.fn((token: string) => {
       if (token === 'admin-token') return Promise.resolve({ uid: 'admin-uid' });
-      if (token === 'normal-token') return Promise.resolve({ uid: 'normal-uid' });
+      if (token === 'normal-token')
+        return Promise.resolve({ uid: 'normal-uid' });
       return Promise.reject(new Error('Invalid token'));
     }),
   }),
@@ -85,7 +86,9 @@ describe('AdminController (e2e)', () => {
       .set('Authorization', 'Bearer normal-token')
       .expect(403)
       .expect((res) => {
-        expect(res.body.error.message).toBe('User does not have admin privileges');
+        expect(res.body.error.message).toBe(
+          'User does not have admin privileges',
+        );
       });
   });
 

@@ -10,6 +10,7 @@ import {
 import { MatchService } from './match.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateInterestDto } from './dto/create-interest.dto';
+import { PassProfileDto } from './dto/pass-profile.dto';
 import { SubscriptionGuard } from '../subscription/guards/subscription.guard';
 import { RequireTier } from '../subscription/decorators/require-tier.decorator';
 import { SubscriptionTier } from '@prisma/client';
@@ -17,6 +18,14 @@ import { SubscriptionTier } from '@prisma/client';
 @Controller('v1')
 export class MatchController {
   constructor(private readonly matchService: MatchService) {}
+
+  @Post('matches/pass')
+  async passProfile(
+    @CurrentUser() user: { uid: string },
+    @Body() dto: PassProfileDto,
+  ) {
+    return this.matchService.passMatch(user.uid, dto.receiverId);
+  }
 
   @Post('interests')
   @UseGuards(SubscriptionGuard)

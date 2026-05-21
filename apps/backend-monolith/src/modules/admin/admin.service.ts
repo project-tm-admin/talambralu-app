@@ -6,7 +6,13 @@ export class AdminService {
   constructor(private readonly prismaReplica: PrismaReplicaService) {}
 
   async getPlatformStats() {
-    const [totalUsers, totalMatches, faceVerifiedCount, workVerifiedCount, incomeVerifiedCount] = await Promise.all([
+    const [
+      totalUsers,
+      totalMatches,
+      faceVerifiedCount,
+      workVerifiedCount,
+      incomeVerifiedCount,
+    ] = await Promise.all([
       this.prismaReplica.profile.count(),
       this.prismaReplica.match.count(),
       this.prismaReplica.profile.count({ where: { isFaceVerified: true } }),

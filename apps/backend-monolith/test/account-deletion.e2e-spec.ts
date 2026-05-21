@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/common/prisma/prisma.service';
 import { PrismaReplicaService } from './../src/common/prisma/prisma-replica.service';
+import { Prisma } from '@prisma/client';
 import * as admin from 'firebase-admin';
 
 // Mock Firebase Admin
@@ -23,12 +24,12 @@ jest.mock('firebase-admin', () => ({
 }));
 
 // Expose the send mock so we can assert it was called — not just the constructor
-let sqsSendMock: jest.Mock;
+const mockSqsSend = jest
+  .fn()
+  .mockResolvedValue({ MessageId: 'test-message-id' });
 jest.mock('@aws-sdk/client-sqs', () => {
-  const send = jest.fn().mockResolvedValue({ MessageId: 'test-message-id' });
-  sqsSendMock = send;
   return {
-    SQSClient: jest.fn().mockImplementation(() => ({ send })),
+    SQSClient: jest.fn().mockImplementation(() => ({ send: mockSqsSend })),
     SendMessageCommand: jest.fn().mockImplementation((args) => args),
     ReceiveMessageCommand: jest.fn().mockImplementation((args) => args),
     DeleteMessageCommand: jest.fn().mockImplementation((args) => args),
@@ -49,8 +50,10 @@ describe('Account Deletion (e2e)', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    sqsSendMock.mockResolvedValue({ MessageId: 'test-message-id' });
-    mockPrismaService.profile.delete.mockResolvedValue({ userId: mockUser.uid });
+    mockSqsSend.mockResolvedValue({ MessageId: 'test-message-id' });
+    mockPrismaService.profile.delete.mockResolvedValue({
+      userId: mockUser.uid,
+    });
 
     process.env.AWS_REGION = 'us-east-1';
     process.env.AWS_SQS_CLEANUP_QUEUE_URL = 'http://localhost/cleanup-queue';
@@ -90,7 +93,7 @@ describe('Account Deletion (e2e)', () => {
     expect(admin.auth().deleteUser).toHaveBeenCalledWith(mockUser.uid);
 
     // SQS send was actually called (not just the constructor)
-    expect(sqsSendMock).toHaveBeenCalledWith(
+    expect(mockSqsSend).toHaveBeenCalledWith(
       expect.objectContaining({
         QueueUrl: 'http://localhost/cleanup-queue',
         MessageBody: JSON.stringify({ userId: mockUser.uid }),
@@ -99,7 +102,6 @@ describe('Account Deletion (e2e)', () => {
   });
 
   it('DELETE /v1/profiles/me returns 404 when profile does not exist', async () => {
-    const { Prisma } = await import('@prisma/client');
     mockPrismaService.profile.delete.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('Record not found', {
         code: 'P2025',

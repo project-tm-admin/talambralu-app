@@ -28,7 +28,10 @@ export class AdminGuard implements CanActivate {
 
     if (!profile || !profile.isAdmin) {
       throw new ForbiddenException({
-        error: { code: 'FORBIDDEN', message: 'User does not have admin privileges' },
+        error: {
+          code: 'FORBIDDEN',
+          message: 'User does not have admin privileges',
+        },
       });
     }
 

@@ -55,15 +55,27 @@ describe('CleanupService', () => {
 
   describe('cleanupUserS3Data', () => {
     it('calls ListObjectsV2 for each of the three prefixes', async () => {
-      mockS3Send.mockResolvedValue({ Contents: [], NextContinuationToken: undefined });
+      mockS3Send.mockResolvedValue({
+        Contents: [],
+        NextContinuationToken: undefined,
+      });
 
       await (service as any).cleanupUserS3Data('user-abc');
 
       const listCalls = mockS3Send.mock.calls;
       expect(listCalls).toHaveLength(3);
-      expect(listCalls[0][0]).toMatchObject({ Bucket: 'test-bucket', Prefix: 'profile-photos/user-abc/' });
-      expect(listCalls[1][0]).toMatchObject({ Bucket: 'test-bucket', Prefix: 'verification-docs/user-abc/' });
-      expect(listCalls[2][0]).toMatchObject({ Bucket: 'test-bucket', Prefix: 'verification-docs/paystubs/user-abc/' });
+      expect(listCalls[0][0]).toMatchObject({
+        Bucket: 'test-bucket',
+        Prefix: 'profile-photos/user-abc/',
+      });
+      expect(listCalls[1][0]).toMatchObject({
+        Bucket: 'test-bucket',
+        Prefix: 'verification-docs/user-abc/',
+      });
+      expect(listCalls[2][0]).toMatchObject({
+        Bucket: 'test-bucket',
+        Prefix: 'verification-docs/paystubs/user-abc/',
+      });
     });
 
     it('calls DeleteObjectsCommand with listed keys', async () => {
@@ -80,7 +92,9 @@ describe('CleanupService', () => {
 
       await (service as any).cleanupUserS3Data('user-abc');
 
-      const deleteCalls = mockS3Send.mock.calls.filter((call) => 'Delete' in call[0]);
+      const deleteCalls = mockS3Send.mock.calls.filter(
+        (call) => 'Delete' in call[0],
+      );
       expect(deleteCalls).toHaveLength(3);
       expect(deleteCalls[0][0]).toMatchObject({
         Bucket: 'test-bucket',
@@ -92,25 +106,36 @@ describe('CleanupService', () => {
     });
 
     it('skips DeleteObjectsCommand when prefix has no objects', async () => {
-      mockS3Send.mockResolvedValue({ Contents: [], NextContinuationToken: undefined });
+      mockS3Send.mockResolvedValue({
+        Contents: [],
+        NextContinuationToken: undefined,
+      });
 
       await (service as any).cleanupUserS3Data('user-abc');
 
-      const deleteCalls = mockS3Send.mock.calls.filter((call) => 'Delete' in call[0]);
+      const deleteCalls = mockS3Send.mock.calls.filter(
+        (call) => 'Delete' in call[0],
+      );
       expect(deleteCalls).toHaveLength(0);
     });
 
     it('throws when DeleteObjectsCommand returns per-object errors', async () => {
       mockS3Send.mockImplementation((cmd) => {
         if ('Prefix' in cmd) {
-          return Promise.resolve({ Contents: [{ Key: 'profile-photos/user-abc/pic.jpg' }] });
+          return Promise.resolve({
+            Contents: [{ Key: 'profile-photos/user-abc/pic.jpg' }],
+          });
         }
-        return Promise.resolve({ Errors: [{ Key: 'profile-photos/user-abc/pic.jpg', Code: 'AccessDenied' }] });
+        return Promise.resolve({
+          Errors: [
+            { Key: 'profile-photos/user-abc/pic.jpg', Code: 'AccessDenied' },
+          ],
+        });
       });
 
-      await expect((service as any).cleanupUserS3Data('user-abc')).rejects.toThrow(
-        'S3 DeleteObjects failed',
-      );
+      await expect(
+        (service as any).cleanupUserS3Data('user-abc'),
+      ).rejects.toThrow('S3 DeleteObjects failed');
     });
 
     it('paginates when NextContinuationToken is present', async () => {
@@ -132,7 +157,9 @@ describe('CleanupService', () => {
         return Promise.resolve({ Errors: [] });
       });
 
-      await (service as any).deleteObjectsWithPrefix('profile-photos/user-abc/');
+      await (service as any).deleteObjectsWithPrefix(
+        'profile-photos/user-abc/',
+      );
 
       // 2 lists + 2 deletes = 4 total calls for one prefix with 2 pages
       expect(mockS3Send).toHaveBeenCalledTimes(4);
@@ -147,10 +174,15 @@ describe('CleanupService', () => {
     });
 
     it('cleans S3 and acks the message on success', async () => {
-      mockS3Send.mockResolvedValue({ Contents: [], NextContinuationToken: undefined });
+      mockS3Send.mockResolvedValue({
+        Contents: [],
+        NextContinuationToken: undefined,
+      });
       mockSqsSend.mockResolvedValue({});
 
-      await (service as any).processMessage(makeMessage({ userId: 'user-abc' }));
+      await (service as any).processMessage(
+        makeMessage({ userId: 'user-abc' }),
+      );
 
       // Ack (DeleteMessageCommand) was sent
       expect(mockSqsSend).toHaveBeenCalledWith(
@@ -161,7 +193,9 @@ describe('CleanupService', () => {
     it('acks without S3 cleanup when profile still exists in DB (DB delete failed)', async () => {
       mockPrisma.profile.findUnique.mockResolvedValue({ userId: 'user-abc' });
 
-      await (service as any).processMessage(makeMessage({ userId: 'user-abc' }));
+      await (service as any).processMessage(
+        makeMessage({ userId: 'user-abc' }),
+      );
 
       expect(mockS3Send).not.toHaveBeenCalled();
       // Still acks so the message is not left in flight indefinitely
@@ -182,9 +216,13 @@ describe('CleanupService', () => {
     it('throws when S3 cleanup fails so message routes to DLQ', async () => {
       mockS3Send.mockImplementation((cmd) => {
         if ('Prefix' in cmd) {
-          return Promise.resolve({ Contents: [{ Key: 'profile-photos/user-abc/pic.jpg' }] });
+          return Promise.resolve({
+            Contents: [{ Key: 'profile-photos/user-abc/pic.jpg' }],
+          });
         }
-        return Promise.resolve({ Errors: [{ Key: 'pic.jpg', Code: 'AccessDenied' }] });
+        return Promise.resolve({
+          Errors: [{ Key: 'pic.jpg', Code: 'AccessDenied' }],
+        });
       });
 
       await expect(
@@ -198,7 +236,11 @@ describe('CleanupService', () => {
     });
 
     it('acks an empty-body message to avoid infinite redelivery', async () => {
-      const emptyMsg = { Body: '', MessageId: 'msg-empty', ReceiptHandle: 'rh-empty' };
+      const emptyMsg = {
+        Body: '',
+        MessageId: 'msg-empty',
+        ReceiptHandle: 'rh-empty',
+      };
       mockSqsSend.mockResolvedValue({});
 
       await (service as any).processMessage(emptyMsg);

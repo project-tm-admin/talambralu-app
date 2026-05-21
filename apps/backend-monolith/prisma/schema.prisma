@@ -23,6 +23,7 @@ enum MatchStatus {
   PENDING
   ACCEPTED
   DECLINED
+  PASSED
 }
 
 model Profile {
