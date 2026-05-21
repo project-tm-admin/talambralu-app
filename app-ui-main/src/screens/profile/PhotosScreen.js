@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -41,15 +41,17 @@ function CameraIcon({ size = 24 }) {
   );
 }
 
-function TrashIcon({ size = 16 }) {
+function DotsIcon({ size = 16 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="#FFF" strokeWidth={2} strokeLinecap="round" />
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx="5" cy="12" r="2" fill="#FFF" />
+      <Circle cx="12" cy="12" r="2" fill="#FFF" />
+      <Circle cx="19" cy="12" r="2" fill="#FFF" />
     </Svg>
   );
 }
 
-function PhotoSlot({ photoUrl, isHero, isUploading, onAdd, onDelete }) {
+function PhotoSlot({ photoUrl, isHero, isUploading, onAdd, onOptions }) {
   if (isUploading) {
     return (
       <View style={[isHero ? styles.heroSlot : styles.thumbSlot, styles.uploadingSlot]}>
@@ -69,8 +71,8 @@ function PhotoSlot({ photoUrl, isHero, isUploading, onAdd, onDelete }) {
             </View>
           </View>
         )}
-        <TouchableOpacity style={styles.deleteBtn} onPress={onDelete} activeOpacity={0.7}>
-          <TrashIcon />
+        <TouchableOpacity style={styles.optionsBtn} onPress={onOptions} activeOpacity={0.7}>
+          <DotsIcon />
         </TouchableOpacity>
       </View>
     );
@@ -97,50 +99,65 @@ function PhotoSlot({ photoUrl, isHero, isUploading, onAdd, onDelete }) {
 
 export default function PhotosScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
+  // Defaults to onboarding mode; pass isOnboarding: false via route params for edit mode
+  const isOnboarding = route.params?.isOnboarding !== false;
   const isFocused = useIsFocused();
   const [photos, setPhotos] = useState([]);
   const [uploadingIndex, setUploadingIndex] = useState(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const isUploadingRef = useRef(false);
+  // Mirrors photos state so async callbacks always read current value (avoids stale closures)
+  const photosRef = useRef([]);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    if (isFocused) {
-      fetchProfile();
-    }
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) fetchProfile();
   }, [isFocused]);
 
+  const setPhotosAndRef = (newPhotos) => {
+    photosRef.current = newPhotos;
+    if (isMountedRef.current) setPhotos(newPhotos);
+  };
+
   const fetchProfile = async () => {
+    // Don't overwrite optimistic UI while an upload is in flight
+    if (isUploadingRef.current) return;
     try {
-      setIsLoadingProfile(true);
+      if (isMountedRef.current) setIsLoadingProfile(true);
       const profile = await api.get('/v1/profiles/me');
-      if (profile && profile.photos) {
-        setPhotos(profile.photos);
+      if (profile?.photos) {
+        setPhotosAndRef(profile.photos);
       }
     } catch (error) {
       console.error('Failed to fetch profile photos:', error);
+      if (isMountedRef.current) {
+        Alert.alert('Error', 'Could not load your photos. Please try again.');
+      }
     } finally {
-      setIsLoadingProfile(false);
+      if (isMountedRef.current) setIsLoadingProfile(false);
     }
   };
 
   const handlePickAndUpload = async (targetIndex) => {
     if (isUploadingRef.current) return;
-    
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.8,
       });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (!result.canceled && result.assets?.length > 0) {
         await uploadPhoto(result.assets[0], targetIndex);
       }
     } catch (error) {
@@ -151,65 +168,90 @@ export default function PhotosScreen() {
 
   const uploadPhoto = async (asset, targetIndex) => {
     isUploadingRef.current = true;
-    setUploadingIndex(targetIndex);
-
+    if (isMountedRef.current) setUploadingIndex(targetIndex);
     try {
       const mimeType = asset.mimeType || 'image/jpeg';
+      const ext = mimeType.split('/')[1] || 'jpg';
       const presignedData = await api.createPresignedPost('PROFILE_PHOTO', mimeType);
-      
       if (!presignedData?.url || !presignedData?.fields) {
         throw new Error('Failed to get upload credentials from server.');
       }
 
       const formData = new FormData();
-      Object.entries(presignedData.fields).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      formData.append('file', { uri: asset.uri, type: mimeType, name: 'photo.jpg' });
+      Object.entries(presignedData.fields).forEach(([key, value]) => formData.append(key, value));
+      formData.append('file', { uri: asset.uri, type: mimeType, name: `photo.${ext}` });
 
-      const uploadResponse = await fetch(presignedData.url, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const uploadResponse = await fetch(presignedData.url, { method: 'POST', body: formData });
       if (!uploadResponse.ok) {
         throw new Error(`Upload failed (${uploadResponse.status}). Please try again.`);
       }
 
-      const photoUrl = `${presignedData.url}/${presignedData.fields.key}`;
-      
-      const newPhotos = [...photos];
+      // presignedData.key is the S3 object key (top-level field, not inside fields)
+      const photoUrl = `${presignedData.url}/${presignedData.key}`;
+
+      // Use photosRef.current (not stale closure) to build the updated array
+      const current = photosRef.current;
+      const newPhotos = [...current];
       newPhotos[targetIndex] = photoUrl;
       const filteredPhotos = newPhotos.filter(Boolean);
-      
+
       await api.patch('/v1/profiles/photos', { photos: filteredPhotos });
-      setPhotos(filteredPhotos);
+      setPhotosAndRef(filteredPhotos);
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Upload Failed', error.message || 'Something went wrong during upload.');
+      if (isMountedRef.current) {
+        Alert.alert('Upload Failed', error.message || 'Something went wrong during upload.');
+      }
     } finally {
       isUploadingRef.current = false;
-      setUploadingIndex(null);
+      if (isMountedRef.current) setUploadingIndex(null);
     }
   };
 
-  const handleDeletePhoto = async (indexToDelete) => {
-    Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
-      { text: 'Cancel', style: 'cancel' },
+  const handlePhotoOptions = (index) => {
+    if (isUploadingRef.current) {
+      Alert.alert('Please wait', 'An upload is in progress.');
+      return;
+    }
+    const current = photosRef.current;
+    const isFirst = index === 0;
+    const isLast = index === current.length - 1;
+
+    const swapAndSave = async (a, b) => {
+      const reordered = [...current];
+      [reordered[a], reordered[b]] = [reordered[b], reordered[a]];
+      try {
+        await api.patch('/v1/profiles/photos', { photos: reordered });
+        if (isMountedRef.current) setPhotosAndRef(reordered);
+      } catch {
+        Alert.alert('Error', 'Failed to reorder photos.');
+      }
+    };
+
+    const buttons = [
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           try {
-            const newPhotos = photos.filter((_, idx) => idx !== indexToDelete);
+            const newPhotos = current.filter((_, i) => i !== index);
             await api.patch('/v1/profiles/photos', { photos: newPhotos });
-            setPhotos(newPhotos);
-          } catch (error) {
-             Alert.alert('Error', 'Failed to delete photo.');
+            if (isMountedRef.current) setPhotosAndRef(newPhotos);
+          } catch {
+            Alert.alert('Error', 'Failed to delete photo.');
           }
         },
       },
-    ]);
+      ...(!isFirst ? [{ text: '← Move Left', onPress: () => swapAndSave(index, index - 1) }] : []),
+      ...(!isLast ? [{ text: 'Move Right →', onPress: () => swapAndSave(index, index + 1) }] : []),
+      { text: 'Cancel', style: 'cancel' },
+    ];
+
+    Alert.alert(
+      isFirst ? 'Main Photo' : 'Photo Options',
+      isFirst ? 'Deleting will promote the next photo to primary.' : undefined,
+      buttons,
+    );
   };
 
   const filledCount = photos.length;
@@ -223,7 +265,7 @@ export default function PhotosScreen() {
           photoUrl={photos[i]}
           isUploading={uploadingIndex === i}
           onAdd={() => handlePickAndUpload(i)}
-          onDelete={() => handleDeletePhoto(i)}
+          onOptions={() => handlePhotoOptions(i)}
         />
       );
     }
@@ -234,10 +276,13 @@ export default function PhotosScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <TopBar onSkip={() => navigation.navigate('About')} skipLabel="Skip" />
+      <TopBar
+        onSkip={isOnboarding ? () => navigation.navigate('About') : undefined}
+        skipLabel={isOnboarding ? 'Skip' : undefined}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Stepper current={11} total={14} />
-        <Text style={styles.title}>Add your{'\n'}photos</Text>
+        {isOnboarding && <Stepper current={11} total={14} />}
+        <Text style={styles.title}>{isOnboarding ? 'Add your' : 'Your'}{'\n'}photos</Text>
 
         <View style={styles.progressRow}>
           <View style={styles.progressBar}>
@@ -247,9 +292,9 @@ export default function PhotosScreen() {
         </View>
 
         {isLoadingProfile && photos.length === 0 ? (
-           <View style={{ height: 260, justifyContent: 'center', alignItems: 'center' }}>
-              <ActivityIndicator size="large" color={T.accent} />
-           </View>
+          <View style={{ height: 260, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={T.accent} />
+          </View>
         ) : (
           <>
             {allSlots[0]}
@@ -281,8 +326,8 @@ export default function PhotosScreen() {
         </View>
 
         <Primary
-          label="Continue"
-          onPress={() => navigation.navigate('About')}
+          label={isOnboarding ? 'Continue' : 'Done'}
+          onPress={() => isOnboarding ? navigation.navigate('About') : navigation.goBack()}
           style={{ marginTop: 24 }}
         />
       </ScrollView>
@@ -389,7 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#EAEAEA',
   },
-  deleteBtn: {
+  optionsBtn: {
     position: 'absolute',
     top: 8,
     right: 8,

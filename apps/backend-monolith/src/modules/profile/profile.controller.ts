@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Patch, Delete, Param, ParseUUIDPipe } from
 import { ProfileService } from './profile.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
+import { UpdatePhotosDto } from './dto/update-photos.dto';
 
 @Controller('v1/profiles')
 export class ProfileController {
@@ -18,9 +19,9 @@ export class ProfileController {
   @Patch('photos')
   async updatePhotos(
     @CurrentUser() user: { uid: string },
-    @Body('photos') photos: string[],
+    @Body() dto: UpdatePhotosDto,
   ) {
-    return this.profileService.updatePhotos(user.uid, photos || []);
+    return this.profileService.updatePhotos(user.uid, dto.photos);
   }
 
   @Get('me')

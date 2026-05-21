@@ -3,7 +3,7 @@
 > **Note:** This document outlines the active frontend integration phase. It depends on the backend infrastructure and API which is already **100% complete**.
 > For historical backend implementation details, please see [`sprint-status.md`](./sprint-status.md).
 
-*Last Updated: 2026-05-20 (Story F1.2 code review complete — all patches applied)*
+*Last Updated: 2026-05-21 (Story F1.3 code review complete — all patches applied)*
 
 ## Overview
 This document outlines the sequenced implementation plan for integrating the React Native (Expo) frontend with the existing NestJS backend architecture.
@@ -17,7 +17,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 1 | `Story F1.1` | Face Verification (Camera UI & S3 Presigned Upload) | None | Medium | `DONE` |
 | 2 | `Story F1.2` | Income/Visa Document Upload & Polling | `Story F1.1` | Medium | `DONE` |
-| 3 | `Story F1.3` | User Profile Photo Management (CRUD) | `Story F1.1` | Medium | `REVIEW` |
+| 3 | `Story F1.3` | User Profile Photo Management (CRUD) | `Story F1.1` | Medium | `DONE` |
 
 **Epic Checkpoint:**
 - [ ] User can take a selfie and upload it to S3 from the mobile app.
