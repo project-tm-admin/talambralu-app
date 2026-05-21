@@ -44,6 +44,15 @@ describe('Match (e2e)', () => {
         .fn()
         .mockResolvedValue({ tier: SubscriptionTier.PREMIUM }),
     },
+    shortlist: {
+      upsert: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+    },
+    profile: {
+      findMany: jest.fn(),
+    },
   };
 
   const mockConfigService = {
@@ -343,6 +352,95 @@ describe('Match (e2e)', () => {
       .expect(201)
       .expect((res) => {
         expect(res.body).toHaveProperty('status', MatchStatus.DECLINED);
+      });
+  });
+
+  // --- Shortlist Scenarios ---
+
+  it('POST /v1/shortlist (Success)', () => {
+    mockPrismaService.shortlist.upsert.mockResolvedValue({
+      id: 'shortlist-id',
+      userId: AUTH_UID,
+      savedProfileId: VALID_UUID_B,
+      createdAt: new Date(),
+    });
+
+    return request(app.getHttpServer())
+      .post('/v1/shortlist')
+      .set('Authorization', 'Bearer token')
+      .send({ profileId: VALID_UUID_B })
+      .expect(201)
+      .expect((res) => {
+        expect(res.body).toHaveProperty(
+          'message',
+          'Profile added to shortlist',
+        );
+      });
+  });
+
+  it('POST /v1/shortlist (Self Shortlist Error)', () => {
+    return request(app.getHttpServer())
+      .post('/v1/shortlist')
+      .set('Authorization', 'Bearer token')
+      .send({ profileId: AUTH_UID })
+      .expect(400);
+  });
+
+  it('DELETE /v1/shortlist/:profileId (Success)', () => {
+    mockPrismaService.shortlist.findUnique.mockResolvedValue({
+      id: 'shortlist-id',
+      userId: AUTH_UID,
+      savedProfileId: VALID_UUID_B,
+    });
+    mockPrismaService.shortlist.delete.mockResolvedValue({});
+
+    return request(app.getHttpServer())
+      .delete(`/v1/shortlist/${VALID_UUID_B}`)
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toHaveProperty(
+          'message',
+          'Profile removed from shortlist',
+        );
+      });
+  });
+
+  it('DELETE /v1/shortlist/:profileId (Not Found)', () => {
+    mockPrismaService.shortlist.findUnique.mockResolvedValue(null);
+
+    return request(app.getHttpServer())
+      .delete(`/v1/shortlist/${VALID_UUID_B}`)
+      .set('Authorization', 'Bearer token')
+      .expect(404);
+  });
+
+  it('GET /v1/shortlist (Success returns recency ordered profiles)', () => {
+    mockPrismaService.shortlist.findMany.mockResolvedValue([
+      {
+        savedProfileId: VALID_UUID_B,
+        createdAt: new Date('2026-05-21T10:00:00Z'),
+      },
+      {
+        savedProfileId: 'other-id',
+        createdAt: new Date('2026-05-20T10:00:00Z'),
+      },
+    ]);
+
+    mockPrismaService.profile.findMany.mockResolvedValue([
+      { userId: 'other-id', fullName: 'Other Profile' },
+      { userId: VALID_UUID_B, fullName: 'Recent Profile' },
+    ]);
+
+    return request(app.getHttpServer())
+      .get('/v1/shortlist')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toHaveLength(2);
+        // Should maintain the order from shortlist.findMany (VALID_UUID_B first)
+        expect(res.body[0]).toHaveProperty('userId', VALID_UUID_B);
+        expect(res.body[1]).toHaveProperty('userId', 'other-id');
       });
   });
 

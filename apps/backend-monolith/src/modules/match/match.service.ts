@@ -4,13 +4,20 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MatchStatus } from '@prisma/client';
+import { ProfileService } from '../profile/profile.service';
 
 @Injectable()
 export class MatchService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => ProfileService))
+    private profileService: ProfileService,
+  ) {}
 
   async createInterest(senderId: string, receiverId: string) {
     if (senderId === receiverId) {
@@ -206,5 +213,67 @@ export class MatchService {
     }
 
     return match.senderId === userId || match.receiverId === userId;
+  }
+
+  async addToShortlist(userId: string, savedProfileId: string) {
+    if (userId === savedProfileId) {
+      throw new BadRequestException('You cannot shortlist yourself');
+    }
+
+    return await this.prisma.shortlist.upsert({
+      where: {
+        userId_savedProfileId: {
+          userId,
+          savedProfileId,
+        },
+      },
+      create: {
+        userId,
+        savedProfileId,
+      },
+      update: {},
+    });
+  }
+  async removeFromShortlist(userId: string, savedProfileId: string) {
+    const record = await this.prisma.shortlist.findUnique({
+      where: {
+        userId_savedProfileId: {
+          userId,
+          savedProfileId,
+        },
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Profile not in shortlist');
+    }
+
+    await this.prisma.shortlist.delete({
+      where: { id: record.id },
+    });
+
+    return { message: 'Profile removed from shortlist' };
+  }
+
+  async getShortlist(userId: string) {
+    const shortlistRecords = await this.prisma.shortlist.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const savedIds = shortlistRecords.map((record) => record.savedProfileId);
+
+    if (savedIds.length === 0) {
+      return [];
+    }
+
+    const profiles = await this.profileService.findManyByIds(savedIds);
+
+    // Map profiles by ID for O(1) lookup to maintain chronological order
+    const profileMap = new Map(profiles.map((p) => [p.userId, p]));
+
+    return savedIds
+      .map((id) => profileMap.get(id))
+      .filter((p) => p !== undefined);
   }
 }

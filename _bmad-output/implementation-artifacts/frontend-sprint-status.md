@@ -32,7 +32,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | — | `Story B1.1` | PASS endpoint (`POST /v1/matches/pass`) + discovery filter | None | Small | `DONE` |
-| — | `Story B1.2` | Shortlist endpoints (`POST/DELETE/GET /v1/shortlist`) | None | Small | `BACKLOG` |
+| — | `Story B1.2` | Shortlist endpoints (`POST/DELETE/GET /v1/shortlist`) | None | Small | `review` |
 
 ---
 

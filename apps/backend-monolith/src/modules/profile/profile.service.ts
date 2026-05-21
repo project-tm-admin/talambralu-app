@@ -5,6 +5,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpsertProfileDto } from './dto/upsert-profile.dto';
@@ -25,6 +27,7 @@ export class ProfileService implements OnModuleInit {
     private prisma: PrismaService,
     private configService: ConfigService,
     private authService: AuthService,
+    @Inject(forwardRef(() => MatchService))
     private matchService: MatchService,
   ) {}
 
@@ -74,6 +77,12 @@ export class ProfileService implements OnModuleInit {
       throw new NotFoundException('Profile not found');
     }
     return profile;
+  }
+
+  async findManyByIds(userIds: string[]) {
+    return this.prisma.profile.findMany({
+      where: { userId: { in: userIds } },
+    });
   }
 
   async findDiscoveryProfiles(userId: string, query: DiscoveryQueryDto) {

@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
   Param,
   ParseUUIDPipe,
@@ -11,6 +12,7 @@ import { MatchService } from './match.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateInterestDto } from './dto/create-interest.dto';
 import { PassProfileDto } from './dto/pass-profile.dto';
+import { AddShortlistDto } from './dto/add-shortlist.dto';
 import { SubscriptionGuard } from '../subscription/guards/subscription.guard';
 import { RequireTier } from '../subscription/decorators/require-tier.decorator';
 import { SubscriptionTier } from '@prisma/client';
@@ -25,6 +27,28 @@ export class MatchController {
     @Body() dto: PassProfileDto,
   ) {
     return this.matchService.passMatch(user.uid, dto.receiverId);
+  }
+
+  @Post('shortlist')
+  async addToShortlist(
+    @CurrentUser() user: { uid: string },
+    @Body() dto: AddShortlistDto,
+  ) {
+    await this.matchService.addToShortlist(user.uid, dto.profileId);
+    return { message: 'Profile added to shortlist' };
+  }
+
+  @Delete('shortlist/:profileId')
+  async removeFromShortlist(
+    @CurrentUser() user: { uid: string },
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+  ) {
+    return this.matchService.removeFromShortlist(user.uid, profileId);
+  }
+
+  @Get('shortlist')
+  async getShortlist(@CurrentUser() user: { uid: string }) {
+    return this.matchService.getShortlist(user.uid);
   }
 
   @Post('interests')

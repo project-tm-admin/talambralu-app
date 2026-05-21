@@ -77,6 +77,16 @@ model Message {
   @@map("messages")
 }
 
+model Shortlist {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") // Firebase UID of the saving user
+  savedProfileId  String   @map("saved_profile_id") // Profile.userId of the saved profile
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, savedProfileId])
+  @@map("shortlist")
+}
+
 enum SubscriptionTier {
   FREE
   PREMIUM
