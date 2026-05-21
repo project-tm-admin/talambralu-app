@@ -235,22 +235,13 @@ export class MatchService {
     });
   }
   async removeFromShortlist(userId: string, savedProfileId: string) {
-    const record = await this.prisma.shortlist.findUnique({
-      where: {
-        userId_savedProfileId: {
-          userId,
-          savedProfileId,
-        },
-      },
+    const result = await this.prisma.shortlist.deleteMany({
+      where: { userId, savedProfileId },
     });
 
-    if (!record) {
+    if (result.count === 0) {
       throw new NotFoundException('Profile not in shortlist');
     }
-
-    await this.prisma.shortlist.delete({
-      where: { id: record.id },
-    });
 
     return { message: 'Profile removed from shortlist' };
   }

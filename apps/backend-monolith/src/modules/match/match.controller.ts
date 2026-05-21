@@ -41,7 +41,7 @@ export class MatchController {
   @Delete('shortlist/:profileId')
   async removeFromShortlist(
     @CurrentUser() user: { uid: string },
-    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Param('profileId') profileId: string,
   ) {
     return this.matchService.removeFromShortlist(user.uid, profileId);
   }
