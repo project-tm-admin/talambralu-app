@@ -3,7 +3,7 @@
 > **Note:** This document outlines the active frontend integration phase. It depends on the backend infrastructure and API which is already **100% complete**.
 > For historical backend implementation details, please see [`sprint-status.md`](./sprint-status.md).
 
-*Last Updated: 2026-05-21 (F2.1 code review — 9 patches applied; B1.1 + B1.2 backend stories added to unblock F2.1)*
+*Last Updated: 2026-05-21 (B1.1 code review — 7 patches applied; story marked DONE)*
 
 ## Overview
 This document outlines the sequenced implementation plan for integrating the React Native (Expo) frontend with the existing NestJS backend architecture.
@@ -31,7 +31,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| — | `Story B1.1` | PASS endpoint (`POST /v1/matches/pass`) + discovery filter | None | Small | `BACKLOG` |
+| — | `Story B1.1` | PASS endpoint (`POST /v1/matches/pass`) + discovery filter | None | Small | `DONE` |
 | — | `Story B1.2` | Shortlist endpoints (`POST/DELETE/GET /v1/shortlist`) | None | Small | `BACKLOG` |
 
 ---

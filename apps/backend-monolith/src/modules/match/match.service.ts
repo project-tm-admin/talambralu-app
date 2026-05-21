@@ -103,6 +103,89 @@ export class MatchService {
     });
   }
 
+  async passMatch(senderId: string, receiverId: string) {
+    if (senderId === receiverId) {
+      throw new BadRequestException('You cannot pass on yourself');
+    }
+
+    const existingMatch = await this.prisma.match.findFirst({
+      where: {
+        OR: [
+          { senderId, receiverId },
+          { senderId: receiverId, receiverId: senderId },
+        ],
+      },
+    });
+
+    if (existingMatch) {
+      if (existingMatch.status === MatchStatus.ACCEPTED) {
+        throw new ConflictException(
+          'Cannot pass on an active match — unmatch first',
+        );
+      }
+
+      if (existingMatch.status === MatchStatus.PASSED) {
+        return existingMatch;
+      }
+
+      // D1: if the other party sent a PENDING interest to the caller, treat as DECLINE
+      const newStatus =
+        existingMatch.status === MatchStatus.PENDING &&
+        existingMatch.receiverId === senderId
+          ? MatchStatus.DECLINED
+          : MatchStatus.PASSED;
+
+      return this.prisma.match.update({
+        where: { id: existingMatch.id },
+        data: { status: newStatus },
+      });
+    }
+
+    try {
+      return await this.prisma.match.create({
+        data: {
+          senderId,
+          receiverId,
+          status: MatchStatus.PASSED,
+        },
+      });
+    } catch (err: unknown) {
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code: string }).code === 'P2002'
+      ) {
+        // Concurrent duplicate create — return idempotently
+        return this.prisma.match.findFirst({
+          where: {
+            OR: [
+              { senderId, receiverId },
+              { senderId: receiverId, receiverId: senderId },
+            ],
+          },
+        });
+      }
+      throw err;
+    }
+  }
+
+  async getInteractedUserIds(userId: string): Promise<string[]> {
+    const matches = await this.prisma.match.findMany({
+      where: {
+        OR: [{ senderId: userId }, { receiverId: userId }],
+      },
+      select: { senderId: true, receiverId: true },
+    });
+
+    const ids = new Set<string>();
+    matches.forEach((m) => {
+      ids.add(m.senderId);
+      ids.add(m.receiverId);
+    });
+    return Array.from(ids);
+  }
+
   async getMatches(userId: string) {
     return this.prisma.match.findMany({
       where: {

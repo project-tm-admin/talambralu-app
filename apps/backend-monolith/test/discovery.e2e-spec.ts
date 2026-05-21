@@ -50,6 +50,9 @@ describe('Discovery (e2e)', () => {
       findMany: jest.fn().mockResolvedValue(mockProfiles),
       count: jest.fn().mockResolvedValue(2),
     },
+    match: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   const mockConfigService = {
@@ -90,7 +93,7 @@ describe('Discovery (e2e)', () => {
         expect(res.body.total).toBe(2);
         expect(mockPrismaService.profile.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: { userId: { not: 'me-id' } },
+            where: { userId: { notIn: ['me-id'] } }, // now it uses notIn with array
           }),
         );
       });
@@ -107,6 +110,29 @@ describe('Discovery (e2e)', () => {
             where: expect.objectContaining({
               gender: 'FEMALE',
               isFaceVerified: true,
+            }),
+          }),
+        );
+      });
+  });
+
+  it('GET /v1/discovery (Excludes passed profiles from results)', () => {
+    const passedUserId = 'passed-user-id';
+    mockPrismaService.match.findMany.mockResolvedValueOnce([
+      { senderId: 'me-id', receiverId: passedUserId },
+    ]);
+
+    return request(app.getHttpServer())
+      .get('/v1/discovery')
+      .set('Authorization', 'Bearer dummy-token')
+      .expect(200)
+      .expect(() => {
+        expect(mockPrismaService.profile.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              userId: expect.objectContaining({
+                notIn: expect.arrayContaining(['me-id', passedUserId]),
+              }),
             }),
           }),
         );

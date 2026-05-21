@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { AuthService } from '../auth/auth.service';
+import { MatchService } from '../match/match.service';
 
 @Injectable()
 export class ProfileService implements OnModuleInit {
@@ -24,6 +25,7 @@ export class ProfileService implements OnModuleInit {
     private prisma: PrismaService,
     private configService: ConfigService,
     private authService: AuthService,
+    private matchService: MatchService,
   ) {}
 
   onModuleInit() {
@@ -86,8 +88,11 @@ export class ProfileService implements OnModuleInit {
       isWorkVerified,
     } = query;
 
+    const interactedIds = await this.matchService.getInteractedUserIds(userId);
+    const excludedUserIds = new Set<string>([userId, ...interactedIds]);
+
     const where: Prisma.ProfileWhereInput = {
-      userId: { not: userId },
+      userId: { notIn: Array.from(excludedUserIds) },
     };
 
     if (gender) {
