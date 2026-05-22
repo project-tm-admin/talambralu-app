@@ -165,6 +165,10 @@ export default function MatchesScreen() {
           await api.post('/v1/matches/pass', { receiverId: currentMatch.id });
         } else if (actionType === 'SAVE') {
           await api.post('/v1/shortlist', { profileId: currentMatch.id });
+        } else {
+          submittingRef.current = false;
+          setIsSubmitting(false);
+          return;
         }
       } catch (err) {
         console.error(`Failed to ${actionType.toLowerCase()} profile:`, err);
@@ -177,6 +181,8 @@ export default function MatchesScreen() {
 
     if (next >= 0 && next < matchesRef.current.length) {
       commitSwipe(next, next > indexRef.current ? 1 : -1);
+    } else {
+      setMatches([]);
     }
     submittingRef.current = false;
     setIsSubmitting(false);
@@ -195,8 +201,9 @@ export default function MatchesScreen() {
         translateX.setValue(atStart || atEnd ? gs.dx * 0.15 : gs.dx);
       },
       onPanResponderRelease: (_, gs) => {
+        if (submittingRef.current) return;
         const idx = indexRef.current;
-        if (gs.dx < -SWIPE_THRESHOLD && idx < matchesRef.current.length - 1) {
+        if (gs.dx < -SWIPE_THRESHOLD && idx < matchesRef.current.length) {
           const currentMatch = matchesRef.current[idx];
           if (currentMatch) {
             api.post('/v1/matches/pass', { receiverId: currentMatch.id })
@@ -205,7 +212,11 @@ export default function MatchesScreen() {
                 Alert.alert('Error', 'Failed to record pass. Please try again.');
               });
           }
-          commitSwipe(idx + 1, 1);
+          if (idx < matchesRef.current.length - 1) {
+            commitSwipe(idx + 1, 1);
+          } else {
+            setMatches([]);
+          }
         } else if (gs.dx > SWIPE_THRESHOLD && idx > 0) {
           commitSwipe(idx - 1, -1);
         } else {

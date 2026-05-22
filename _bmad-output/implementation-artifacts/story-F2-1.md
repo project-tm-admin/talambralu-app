@@ -73,7 +73,7 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 - Added API integration for match state actions to `MatchDetailScreen`.
 
 ## Status
-**Status:** in-progress
+**Status:** done
 
 ### Review Findings
 
@@ -117,3 +117,17 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 **Deferred:**
 - [x] [Review][Defer] `commitSwipe` called when `currentMatch` is falsy [MatchesScreen.js:151] — deferred, theoretical: if `matches[currentIndex]` is undefined (sparse array), index advances without recording action; not possible with current data shape.
 - [x] [Review][Defer] `matches` array reload mid-swipe could target wrong profile [MatchesScreen.js:154] — deferred, hypothetical: no auto-reload in current code; stale closure risk if discovery data is ever refreshed mid-session.
+
+### Review Findings (CR Pass 3 — 2026-05-22)
+
+**Patches Required:**
+- [x] [Review][Patch] Gesture + button concurrent race — `onPanResponderRelease` never checks `submittingRef`; swipe while `advanceTo` in-flight fires duplicate PASS API and double-advances index [MatchesScreen.js:199] — Fixed: added `if (submittingRef.current) return;` at top of `onPanResponderRelease`.
+- [x] [Review][Patch] `advanceTo` missing `else` guard for unknown `actionType` — falls through to `commitSwipe`, advancing card without any API call [MatchesScreen.js:162-174] — Fixed: added `else { submittingRef.current = false; setIsSubmitting(false); return; }`.
+- [x] [Review][Patch] Last card not dismissed after action — button fires API but `commitSwipe` blocked by bounds check (AC1); left-swipe on last card fully suppressed — no API, no dismiss (AC1) [MatchesScreen.js:178, 199] — Fixed: button path calls `setMatches([])` when next is out-of-bounds; swipe path now allows left-swipe on last card, fires API, and calls `setMatches([])` to show empty deck.
+
+**Deferred:**
+- [x] [Review][Defer] Gesture-based PASS can't revert on error (AC4 partial) [MatchesScreen.js:202-208] — deferred: card already animated; rollback animation is out of scope for this story.
+- [x] [Review][Defer] No spinner during action, only opacity fade (AC5 polish) — deferred: opacity change satisfies "immediate feedback"; spinner is a polish item.
+- [x] [Review][Defer] `fetchProfile` has no `mountedRef` guard [MatchDetailScreen.js:95-105] — deferred, pre-existing: not introduced by this diff; fix in a future polish pass.
+- [x] [Review][Defer] StrictMode double-invoke may prematurely set `mountedRef.current = false` — deferred: dev-mode only, standard React limitation; harmless in production.
+- [x] [Review][Defer] Unknown `actionType` in `handleAction` causes momentary button disable flash [MatchDetailScreen.js:150] — deferred: internal-only call site; impossible in practice with fixed call sites.
