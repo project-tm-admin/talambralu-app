@@ -129,21 +129,23 @@ export default function MatchDetailScreen() {
 
   const handleAction = async (actionType) => {
     if (!profileId) return;
-    if (actionType === 'LIKE') {
-      if (isSubmitting) return;
-      setIsSubmitting(true);
-      try {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      if (actionType === 'LIKE') {
         await api.post('/v1/interests', { receiverId: profileId });
-        navigation.goBack();
-      } catch (error) {
-        console.error('Failed to send interest:', error);
-        Alert.alert('Error', 'Failed to send interest. Please try again.');
-      } finally {
-        setIsSubmitting(false);
+      } else if (actionType === 'PASS') {
+        await api.post('/v1/matches/pass', { receiverId: profileId });
+      } else if (actionType === 'SAVE') {
+        await api.post('/v1/shortlist', { profileId: profileId });
       }
-    } else {
-      // PASS and SAVE: UI-only navigation (backend endpoints pending — see F2.1 blocker)
       navigation.goBack();
+    } catch (error) {
+      console.error(`Failed to ${actionType.toLowerCase()} profile:`, error);
+      Alert.alert('Error', `Failed to ${actionType.toLowerCase()} profile. Please try again.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

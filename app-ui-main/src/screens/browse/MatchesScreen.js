@@ -148,11 +148,17 @@ export default function MatchesScreen() {
 
   const advanceTo = (next, actionType) => {
     if (next < 0 || next >= matches.length) return;
-    if (actionType === 'LIKE') {
-      const currentMatch = matches[currentIndex];
-      if (currentMatch) {
+    const currentMatch = matches[currentIndex];
+    if (currentMatch) {
+      if (actionType === 'LIKE') {
         api.post('/v1/interests', { receiverId: currentMatch.id })
           .catch(err => console.error('Failed to send interest:', err));
+      } else if (actionType === 'PASS') {
+        api.post('/v1/matches/pass', { receiverId: currentMatch.id })
+          .catch(err => console.error('Failed to pass profile:', err));
+      } else if (actionType === 'SAVE') {
+        api.post('/v1/shortlist', { profileId: currentMatch.id })
+          .catch(err => console.error('Failed to shortlist profile:', err));
       }
     }
     commitSwipe(next, next > indexRef.current ? 1 : -1);

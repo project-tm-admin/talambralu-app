@@ -41,7 +41,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| 4 | `Story F2.1` | Match State Machine (Pass, Save, Like actions) | `B1.1`, `B1.2` | Medium | `IN-PROGRESS` |
+| 4 | `Story F2.1` | Match State Machine (Pass, Save, Like actions) | `B1.1`, `B1.2` | Medium | `REVIEW` |
 | 5 | `Story F2.2` | Matches & Shortlist Filtering / Sorting | `Story F2.1`, `B1.2` | Small | `BACKLOG` |
 | 6 | `Story F2.3` | WebSocket Connection Setup (Socket.io Client) | None | Medium | `BACKLOG` |
 | 7 | `Story F2.4` | Real-time Chat UI Integration (Send/Receive) | `Story F2.3`, `F2.1` | Large | `BACKLOG` |

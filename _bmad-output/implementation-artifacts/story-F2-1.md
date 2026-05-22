@@ -73,7 +73,7 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 - Added API integration for match state actions to `MatchDetailScreen`.
 
 ## Status
-**Status:** in-progress
+**Status:** review
 
 ### Review Findings
 
@@ -81,7 +81,7 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 - [x] [Review][Decision] Right-swipe gesture: back-navigation removed — **Resolved: restore original behavior.** Right-swipe = go back to previous card (restore `idx > 0`, `commitSwipe(idx - 1, -1)`). Tap buttons on the card handle PASS/SAVE/LIKE.
 - [x] [Review][Decision] SAVE (Shortlist) has no swipe gesture mapping — **Resolved: button-only, no gesture needed.**
 - [x] [Review][Decision] `profileId` vs `targetProfileId` field name inconsistency — **Resolved: backend `CreateInterestDto` uses `receiverId`. All three fields are wrong.** Fix: `POST /v1/interests` must send `{ receiverId: profileId }`.
-- [ ] [Review][Decision][BLOCKER] Missing backend endpoints: `POST /v1/matches/pass` and `POST /v1/shortlist` do not exist — Verified against backend controllers. The match controller only exposes: `POST /v1/interests`, `GET /v1/interests/pending`, `POST /v1/interests/:id/accept`, `POST /v1/interests/:id/decline`, `GET /v1/matches`. **Decision: story is blocked. New backend stories required for PASS and SAVE/Shortlist endpoints before frontend wiring can be completed.** For now, Pass and Save actions should NOT call a non-existent endpoint.
+- [x] [Review][Decision][BLOCKER] Missing backend endpoints: `POST /v1/matches/pass` and `POST /v1/shortlist` do not exist â€” Verified against backend controllers. The match controller only exposes: `POST /v1/interests`, `GET /v1/interests/pending`, `POST /v1/interests/:id/accept`, `POST /v1/interests/:id/decline`, `GET /v1/matches`. **Decision: story is blocked. New backend stories required for PASS and SAVE/Shortlist endpoints before frontend wiring can be completed.** For now, Pass and Save actions should NOT call a non-existent endpoint. -> **Resolved: Backend endpoints were added in B1.1 and B1.2. Frontend api calls for PASS and SAVE are now wired up in MatchesScreen.js and MatchDetailScreen.js.**
 
 **Patches Required:**
 - [x] [Review][Patch] Fix LIKE field name: `targetProfileId` → `receiverId` [MatchDetailScreen.js:139] — Fixed: `api.post('/v1/interests', { receiverId: profileId })`.
