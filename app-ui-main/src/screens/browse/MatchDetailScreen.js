@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -78,6 +78,8 @@ export default function MatchDetailScreen() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const profileId = route.params?.profileId;
 
@@ -86,6 +88,10 @@ export default function MatchDetailScreen() {
       fetchProfile();
     }
   }, [profileId]);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const fetchProfile = async () => {
     try {
@@ -129,8 +135,9 @@ export default function MatchDetailScreen() {
 
   const handleAction = async (actionType) => {
     if (!profileId) return;
-    if (isSubmitting) return;
+    if (isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       if (actionType === 'LIKE') {
@@ -139,13 +146,16 @@ export default function MatchDetailScreen() {
         await api.post('/v1/matches/pass', { receiverId: profileId });
       } else if (actionType === 'SAVE') {
         await api.post('/v1/shortlist', { profileId: profileId });
+      } else {
+        return;
       }
-      navigation.goBack();
+      if (mountedRef.current) navigation.goBack();
     } catch (error) {
       console.error(`Failed to ${actionType.toLowerCase()} profile:`, error);
-      Alert.alert('Error', `Failed to ${actionType.toLowerCase()} profile. Please try again.`);
+      if (mountedRef.current) Alert.alert('Error', `Failed to ${actionType.toLowerCase()} profile. Please try again.`);
     } finally {
-      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+      if (mountedRef.current) setIsSubmitting(false);
     }
   };
 
@@ -213,11 +223,11 @@ export default function MatchDetailScreen() {
 
       {/* Sticky action bar */}
       <SafeAreaView style={styles.stickyBar} edges={['bottom']}>
-        <TouchableOpacity style={styles.stickyPass} onPress={() => handleAction('PASS')}>
+        <TouchableOpacity style={[styles.stickyPass, isSubmitting && { opacity: 0.6 }]} onPress={() => handleAction('PASS')} disabled={isSubmitting}>
           <XIcon />
           <Text style={styles.stickyPassText}>Pass</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.stickyBookmark} onPress={() => handleAction('SAVE')}>
+        <TouchableOpacity style={[styles.stickyBookmark, isSubmitting && { opacity: 0.6 }]} onPress={() => handleAction('SAVE')} disabled={isSubmitting}>
           <BookmarkIcon />
           <Text style={styles.stickyBookmarkText}>Shortlist</Text>
         </TouchableOpacity>

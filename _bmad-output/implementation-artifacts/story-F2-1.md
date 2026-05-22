@@ -73,7 +73,7 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 - Added API integration for match state actions to `MatchDetailScreen`.
 
 ## Status
-**Status:** review
+**Status:** in-progress
 
 ### Review Findings
 
@@ -98,3 +98,22 @@ As a user, I want to be able to pass, save, or like potential matches so that I 
 
 **Deferred:**
 - [x] [Review][Defer] "Optimistic" comment misrepresents actual pattern [MatchDetailScreen.js:142] — deferred, pre-existing: The function awaits the API call before navigating — that is standard async, not optimistic UI. The misleading comment can be corrected in a future polish pass.
+
+### Review Findings (CR Pass 2 — 2026-05-22)
+
+**Decision Needed:**
+- [x] [Review][Decision] AC3: LIKE sends interest but no PENDING state shown in UI — **Deferred to F2.2**: PENDING state is on the backend; the Matches & Shortlist screen will surface it. `navigation.goBack()` is correct.
+- [x] [Review][Decision] No shared `useMatchAction` hook — **Deferred**: prioritise correctness patches first; extract shared hook when F2.2 adds the third consumer and the pattern stabilises.
+
+**Patches Required:**
+- [x] [Review][Patch] Left-swipe gesture bypasses PASS API — pan responder calls `commitSwipe` directly on left-swipe, skipping `advanceTo`; `POST /v1/matches/pass` never fires on swipe gesture [MatchesScreen.js:181-184] — Fixed: added PASS API call in `onPanResponderRelease` alongside `commitSwipe`; also fixed stale `matches.length` closure to use `matchesRef.current`.
+- [x] [Review][Patch] Fire-and-forget in `advanceTo` violates AC4 — `.catch(console.error)` only; `commitSwipe` already fired before API resolves; user gets no error alert and retry is structurally impossible [MatchesScreen.js:153-162] — Fixed: `advanceTo` is now async; awaits API before `commitSwipe`; shows `Alert` on failure and returns without advancing.
+- [x] [Review][Patch] Pass and Save buttons not disabled during `isSubmitting` + useState flush race — only Like has `disabled={isSubmitting}`; rapid taps on Pass/Save can fire duplicate requests before state propagates [MatchDetailScreen.js:216-221] — Fixed: all three buttons now have `disabled={isSubmitting}` and `opacity: 0.6`; guard uses `isSubmittingRef` (ref, not state) to prevent race.
+- [x] [Review][Patch] Unknown `actionType` silently navigates away without API call — no `else`/`default` branch; unrecognised caller silently loses the action [MatchDetailScreen.js:136-143] — Fixed: added `else { return; }` so unknown action aborts without navigating.
+- [x] [Review][Patch] PASS/SAVE on last card silently dropped — bounds check `next >= matches.length` returns before API fires; action not recorded on the final profile [MatchesScreen.js:150] — Fixed: API fires first; advance only occurs if `next` is in bounds.
+- [x] [Review][Patch] Stale `currentIndex` closure in `advanceTo` — reads React state (may lag ref); rapid double-tap uses same stale index, fires duplicate request, skips a card [MatchesScreen.js:149-164] — Fixed: `advanceTo` now reads `matchesRef.current[indexRef.current]`; `submittingRef` guards against concurrent invocations.
+- [x] [Review][Patch] `navigation.goBack()` on unmounted component [LOW] — if user backs out while API is in-flight, success path tries to navigate an already-unmounted screen [MatchDetailScreen.js:143] — Fixed: added `mountedRef`; all navigation and setState calls guarded by `mountedRef.current`.
+
+**Deferred:**
+- [x] [Review][Defer] `commitSwipe` called when `currentMatch` is falsy [MatchesScreen.js:151] — deferred, theoretical: if `matches[currentIndex]` is undefined (sparse array), index advances without recording action; not possible with current data shape.
+- [x] [Review][Defer] `matches` array reload mid-swipe could target wrong profile [MatchesScreen.js:154] — deferred, hypothetical: no auto-reload in current code; stale closure risk if discovery data is ever refreshed mid-session.

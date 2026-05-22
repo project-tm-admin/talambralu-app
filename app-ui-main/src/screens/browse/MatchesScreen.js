@@ -76,10 +76,15 @@ export default function MatchesScreen() {
   const translateX = useRef(new Animated.Value(0)).current;
   const indexRef = useRef(0);
   const pendingEntryDir = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const matchesRef = useRef([]);
 
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  useEffect(() => { matchesRef.current = matches; }, [matches]);
 
   const fetchInitialData = async () => {
     try {
@@ -146,22 +151,35 @@ export default function MatchesScreen() {
     setCurrentIndex(nextIndex);
   };
 
-  const advanceTo = (next, actionType) => {
-    if (next < 0 || next >= matches.length) return;
-    const currentMatch = matches[currentIndex];
+  const advanceTo = async (next, actionType) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+
+    const currentMatch = matchesRef.current[indexRef.current];
     if (currentMatch) {
-      if (actionType === 'LIKE') {
-        api.post('/v1/interests', { receiverId: currentMatch.id })
-          .catch(err => console.error('Failed to send interest:', err));
-      } else if (actionType === 'PASS') {
-        api.post('/v1/matches/pass', { receiverId: currentMatch.id })
-          .catch(err => console.error('Failed to pass profile:', err));
-      } else if (actionType === 'SAVE') {
-        api.post('/v1/shortlist', { profileId: currentMatch.id })
-          .catch(err => console.error('Failed to shortlist profile:', err));
+      try {
+        if (actionType === 'LIKE') {
+          await api.post('/v1/interests', { receiverId: currentMatch.id });
+        } else if (actionType === 'PASS') {
+          await api.post('/v1/matches/pass', { receiverId: currentMatch.id });
+        } else if (actionType === 'SAVE') {
+          await api.post('/v1/shortlist', { profileId: currentMatch.id });
+        }
+      } catch (err) {
+        console.error(`Failed to ${actionType.toLowerCase()} profile:`, err);
+        Alert.alert('Error', `Failed to ${actionType.toLowerCase()} profile. Please try again.`);
+        submittingRef.current = false;
+        setIsSubmitting(false);
+        return;
       }
     }
-    commitSwipe(next, next > indexRef.current ? 1 : -1);
+
+    if (next >= 0 && next < matchesRef.current.length) {
+      commitSwipe(next, next > indexRef.current ? 1 : -1);
+    }
+    submittingRef.current = false;
+    setIsSubmitting(false);
   };
 
   const panResponder = useRef(
@@ -173,12 +191,20 @@ export default function MatchesScreen() {
       onPanResponderMove: (_, gs) => {
         const idx = indexRef.current;
         const atStart = idx === 0 && gs.dx > 0;
-        const atEnd = idx === matches.length - 1 && gs.dx < 0;
+        const atEnd = idx === matchesRef.current.length - 1 && gs.dx < 0;
         translateX.setValue(atStart || atEnd ? gs.dx * 0.15 : gs.dx);
       },
       onPanResponderRelease: (_, gs) => {
         const idx = indexRef.current;
-        if (gs.dx < -SWIPE_THRESHOLD && idx < matches.length - 1) {
+        if (gs.dx < -SWIPE_THRESHOLD && idx < matchesRef.current.length - 1) {
+          const currentMatch = matchesRef.current[idx];
+          if (currentMatch) {
+            api.post('/v1/matches/pass', { receiverId: currentMatch.id })
+              .catch(err => {
+                console.error('Failed to pass profile:', err);
+                Alert.alert('Error', 'Failed to record pass. Please try again.');
+              });
+          }
           commitSwipe(idx + 1, 1);
         } else if (gs.dx > SWIPE_THRESHOLD && idx > 0) {
           commitSwipe(idx - 1, -1);
@@ -335,9 +361,10 @@ export default function MatchesScreen() {
       {/* ── Action buttons ── */}
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, isSubmitting && { opacity: 0.5 }]}
           onPress={() => advanceTo(currentIndex + 1, 'PASS')}
           activeOpacity={0.8}
+          disabled={isSubmitting}
         >
           <View style={[styles.actionCircle, styles.passCircle]}>
             <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
@@ -348,9 +375,10 @@ export default function MatchesScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, isSubmitting && { opacity: 0.5 }]}
           onPress={() => advanceTo(currentIndex + 1, 'SAVE')}
           activeOpacity={0.8}
+          disabled={isSubmitting}
         >
           <View style={[styles.actionCircle, styles.saveCircle]}>
             <Svg width={26} height={26} viewBox="0 0 24 24">
@@ -364,9 +392,10 @@ export default function MatchesScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={[styles.actionBtn, isSubmitting && { opacity: 0.5 }]}
           onPress={() => advanceTo(currentIndex + 1, 'LIKE')}
           activeOpacity={0.8}
+          disabled={isSubmitting}
         >
           <View style={[styles.actionCircle, styles.heartCircle]}>
             <Svg width={26} height={26} viewBox="0 0 24 24">
