@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import PhotoPlaceholder from '../../components/PhotoPlaceholder';
 import { VerifyDot } from '../../components/VerifyBadge';
+import { useDiscoveryFilters } from '../../hooks/useDiscoveryFilters';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 48 - 12) / 2;
@@ -28,21 +29,27 @@ function FilterIcon() {
 }
 
 const FILTER_CHIPS = ['All', 'Verified', 'USA', 'Telugu', 'Premium', 'Family', 'Active'];
+const UNIMPLEMENTED_CHIPS = new Set(['USA', 'Telugu', 'Premium', 'Family', 'Active']);
 
-const PROFILES = [
-  { name: 'Priya M.', age: 27, city: 'New Jersey', premium: true, verified: true, new: false, family: false },
-  { name: 'Swathi K.', age: 29, city: 'Houston, TX', premium: false, verified: true, new: true, family: false },
-  { name: 'Divya N.', age: 26, city: 'Chicago, IL', premium: true, verified: false, new: false, family: true },
-  { name: 'Kavya P.', age: 31, city: 'Seattle, WA', premium: false, verified: true, new: false, family: false },
-  { name: 'Meena R.', age: 28, city: 'Atlanta, GA', premium: false, verified: false, new: true, family: false },
-  { name: 'Sruthi V.', age: 30, city: 'Dallas, TX', premium: true, verified: true, new: false, family: true },
-];
+function getAge(dob) {
+  if (!dob) return '';
+  const birthDate = new Date(dob);
+  if (isNaN(birthDate.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+}
 
 function ProfileCard({ profile, large }) {
   const cardH = large ? 220 : 180;
+  const age = profile.dob ? getAge(profile.dob) : profile.age || '';
+  const name = profile.fullName || profile.name || 'Unknown';
+  
   return (
     <View style={[styles.profileCard, { width: large ? width - 32 : CARD_W }]}>
-      <PhotoPlaceholder width={large ? width - 32 : CARD_W} height={cardH} label={profile.name} style={{ borderRadius: 0 }} />
+      <PhotoPlaceholder width={large ? width - 32 : CARD_W} height={cardH} label={name} style={{ borderRadius: 0 }} />
       <View style={styles.cardBadges}>
         {profile.premium && (
           <View style={styles.premiumBadge}>
@@ -62,10 +69,10 @@ function ProfileCard({ profile, large }) {
       </View>
       <View style={styles.cardInfo}>
         <View style={styles.cardNameRow}>
-          <Text style={styles.cardName}>{profile.name}, {profile.age}</Text>
-          {profile.verified && <VerifyDot size={12} />}
+          <Text style={styles.cardName}>{name}{age ? `, ${age}` : ''}</Text>
+          {(profile.isFaceVerified || profile.verified) && <VerifyDot size={12} />}
         </View>
-        <Text style={styles.cardCity}>{profile.city}</Text>
+        <Text style={styles.cardCity}>{profile.city || 'United States'}</Text>
       </View>
     </View>
   );
@@ -73,9 +80,28 @@ function ProfileCard({ profile, large }) {
 
 export default function SearchScreen() {
   const navigation = useNavigation();
-  const [search, setSearch] = useState('');
+  const route = useRoute();
+  
+  const { filters, applyFilters, results, shortlist, loading } = useDiscoveryFilters();
   const [activeChip, setActiveChip] = useState('All');
   const [alertsOn, setAlertsOn] = useState(true);
+
+  // Apply filters coming back from FiltersScreen
+  useEffect(() => {
+    if (route.params?.appliedFilters != null) {
+      applyFilters(route.params.appliedFilters);
+      navigation.setParams({ appliedFilters: null });
+    }
+  }, [route.params?.appliedFilters, applyFilters, navigation]);
+
+  const handleSearchChange = (text) => {
+    applyFilters({ keywords: text });
+  };
+
+  const handleChipPress = (chip) => {
+    setActiveChip(chip);
+    applyFilters({ isVerified: chip === 'Verified' });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -90,15 +116,15 @@ export default function SearchScreen() {
             <SearchIcon />
             <TextInput
               style={styles.searchInput}
-              value={search}
-              onChangeText={setSearch}
+              value={filters.keywords || ''}
+              onChangeText={handleSearchChange}
               placeholder="Name, city, profession..."
               placeholderTextColor={T.mute}
             />
           </View>
           <TouchableOpacity
             style={styles.filterBtn}
-            onPress={() => navigation.navigate('Filters')}
+            onPress={() => navigation.navigate('Filters', { currentFilters: filters })}
           >
             <FilterIcon />
           </TouchableOpacity>
@@ -110,24 +136,36 @@ export default function SearchScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipsScroll}
         >
-          {FILTER_CHIPS.map(chip => (
-            <TouchableOpacity
-              key={chip}
-              style={[styles.filterChip, activeChip === chip && styles.filterChipActive]}
-              onPress={() => setActiveChip(chip)}
-            >
-              <Text style={[styles.filterChipText, activeChip === chip && styles.filterChipTextActive]}>
-                {chip}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {FILTER_CHIPS.map(chip => {
+            const isDisabled = UNIMPLEMENTED_CHIPS.has(chip);
+            return (
+              <TouchableOpacity
+                key={chip}
+                style={[
+                  styles.filterChip,
+                  activeChip === chip && !isDisabled && styles.filterChipActive,
+                  isDisabled && styles.filterChipDisabled,
+                ]}
+                onPress={() => handleChipPress(chip)}
+                disabled={isDisabled}
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  activeChip === chip && !isDisabled && styles.filterChipTextActive,
+                  isDisabled && styles.filterChipTextDisabled,
+                ]}>
+                  {chip}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Saved search */}
         <View style={styles.savedBar}>
           <View>
             <Text style={styles.savedTitle}>Telugu · Bay Area · 25–32 · Vegetarian</Text>
-            <Text style={styles.savedSub}>Saved search · 28 new profiles</Text>
+            <Text style={styles.savedSub}>Saved search · {results.length} results</Text>
           </View>
           <Switch
             value={alertsOn}
@@ -138,35 +176,36 @@ export default function SearchScreen() {
           />
         </View>
 
-        {/* Highly Compatible */}
-        <Text style={styles.sectionTitle}>Highly Compatible</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
-          {PROFILES.slice(0, 3).map((p, i) => (
-            <TouchableOpacity key={i} onPress={() => navigation.navigate('MatchDetail')} activeOpacity={0.8}>
-              <ProfileCard profile={p} large={false} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {loading ? (
+          <ActivityIndicator size="large" color={T.accent} style={{ marginTop: 40 }} />
+        ) : (
+          <>
+            {shortlist.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Your Shortlist ({shortlist.length})</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, marginBottom: 24 }}>
+                  {shortlist.map((p, i) => (
+                    <TouchableOpacity key={p.id || i} onPress={() => navigation.navigate('MatchDetail')} activeOpacity={0.8}>
+                      <ProfileCard profile={p} large={false} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
-        {/* Quick Browse */}
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Quick Browse</Text>
-        <View style={styles.gridWrap}>
-          {PROFILES.map((p, i) => (
-            <TouchableOpacity key={i} onPress={() => navigation.navigate('MatchDetail')} activeOpacity={0.8}>
-              <ProfileCard profile={p} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Recently Joined */}
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Recently Joined</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
-          {PROFILES.filter(p => p.new).map((p, i) => (
-            <TouchableOpacity key={i} onPress={() => navigation.navigate('MatchDetail')} activeOpacity={0.8}>
-              <ProfileCard profile={p} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+            <Text style={styles.sectionTitle}>Search Results ({results.length})</Text>
+            <View style={styles.gridWrap}>
+              {results.map((p, i) => (
+                <TouchableOpacity key={p.id || i} onPress={() => navigation.navigate('MatchDetail')} activeOpacity={0.8}>
+                  <ProfileCard profile={p} />
+                </TouchableOpacity>
+              ))}
+              {results.length === 0 && (
+                <Text style={{ padding: 20, color: T.mute }}>No profiles found matching your criteria.</Text>
+              )}
+            </View>
+          </>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -243,6 +282,12 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: '#fff',
+  },
+  filterChipDisabled: {
+    opacity: 0.4,
+  },
+  filterChipTextDisabled: {
+    color: T.mute,
   },
   savedBar: {
     flexDirection: 'row',

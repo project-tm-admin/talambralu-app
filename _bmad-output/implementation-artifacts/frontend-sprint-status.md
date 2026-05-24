@@ -3,7 +3,7 @@
 > **Note:** This document outlines the active frontend integration phase. It depends on the backend infrastructure and API which is already **100% complete**.
 > For historical backend implementation details, please see [`sprint-status.md`](./sprint-status.md).
 
-*Last Updated: 2026-05-21 (B1.2 code review — 5 patches applied; story marked DONE)*
+*Last Updated: 2026-05-24 (F2.2 code review — 13 patches applied; story marked DONE)*
 
 ## Overview
 This document outlines the sequenced implementation plan for integrating the React Native (Expo) frontend with the existing NestJS backend architecture.
@@ -42,7 +42,7 @@ This document outlines the sequenced implementation plan for integrating the Rea
 | Order | ID | Task | Dependency | Est. Scope | Status |
 | :---: | :--- | :--- | :--- | :--- | :--- |
 | 4 | `Story F2.1` | Match State Machine (Pass, Save, Like actions) | `B1.1`, `B1.2` | Medium | `DONE` |
-| 5 | `Story F2.2` | Matches & Shortlist Filtering / Sorting | `Story F2.1`, `B1.2` | Small | `BACKLOG` |
+| 5 | `Story F2.2` | Matches & Shortlist Filtering / Sorting | `Story F2.1`, `B1.2` | Small | `DONE` |
 | 6 | `Story F2.3` | WebSocket Connection Setup (Socket.io Client) | None | Medium | `BACKLOG` |
 | 7 | `Story F2.4` | Real-time Chat UI Integration (Send/Receive) | `Story F2.3`, `F2.1` | Large | `BACKLOG` |
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import Chip from '../../components/Chip';
@@ -35,7 +35,7 @@ function ToggleRow({ label, active, onToggle }) {
   );
 }
 
-function AgeSlider() {
+function AgeSlider({ minAge, maxAge, onMinAgeChange, onMaxAgeChange }) {
   return (
     <View style={styles.sliderWrap}>
       <View style={styles.sliderTrack}>
@@ -44,9 +44,25 @@ function AgeSlider() {
         <View style={[styles.sliderThumb, { left: '70%' }]} />
       </View>
       <View style={styles.sliderLabels}>
-        <Text style={styles.sliderLabelText}>22</Text>
-        <Text style={styles.sliderRange}>22 – 36 years old</Text>
-        <Text style={styles.sliderLabelText}>36</Text>
+        <View style={styles.ageStepper}>
+          <TouchableOpacity onPress={() => onMinAgeChange(Math.max(18, minAge - 1))} style={styles.stepBtn}>
+            <Text style={styles.stepBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.sliderLabelText}>{minAge}</Text>
+          <TouchableOpacity onPress={() => onMinAgeChange(Math.min(maxAge - 1, minAge + 1))} style={styles.stepBtn}>
+            <Text style={styles.stepBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.sliderRange}>{minAge} – {maxAge} years old</Text>
+        <View style={styles.ageStepper}>
+          <TouchableOpacity onPress={() => onMaxAgeChange(Math.max(minAge + 1, maxAge - 1))} style={styles.stepBtn}>
+            <Text style={styles.stepBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={styles.sliderLabelText}>{maxAge}</Text>
+          <TouchableOpacity onPress={() => onMaxAgeChange(Math.min(65, maxAge + 1))} style={styles.stepBtn}>
+            <Text style={styles.stepBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -54,14 +70,41 @@ function AgeSlider() {
 
 export default function FiltersScreen() {
   const navigation = useNavigation();
-  const [verified, setVerified] = useState(true);
-  const [active, setActive] = useState(false);
-  const [premium, setPremium] = useState(false);
-  const [religion, setReligion] = useState('Hindu');
-  const [community, setCommunity] = useState('Open to all');
-  const [visa, setVisa] = useState('Any');
-  const [edu, setEdu] = useState("Master's");
-  const [diet, setDiet] = useState('Any');
+  const route = useRoute();
+  
+  const currentFilters = route.params?.currentFilters || {};
+
+  const [verified, setVerified] = useState(currentFilters.isVerified || false);
+  const [active, setActive] = useState(currentFilters.active || false);
+  const [premium, setPremium] = useState(currentFilters.premium || false);
+  const [religion, setReligion] = useState(currentFilters.religion || 'Hindu');
+  const [community, setCommunity] = useState(currentFilters.community || 'Open to all');
+  const [visa, setVisa] = useState(currentFilters.visa || 'Any');
+  const [edu, setEdu] = useState(currentFilters.edu || "Master's");
+  const [diet, setDiet] = useState(currentFilters.diet || 'Any');
+  const [minAge, setMinAge] = useState(currentFilters.minAge ?? 21);
+  const [maxAge, setMaxAge] = useState(currentFilters.maxAge ?? 45);
+
+  const applyAndGoBack = () => {
+    navigation.navigate({
+      name: 'Search',
+      params: {
+        appliedFilters: {
+          isVerified: verified,
+          active,
+          premium,
+          religion,
+          community,
+          visa,
+          edu,
+          diet,
+          minAge,
+          maxAge,
+        },
+      },
+      merge: true,
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -83,6 +126,8 @@ export default function FiltersScreen() {
               setVisa('Any');
               setEdu("Master's");
               setDiet('Any');
+              setMinAge(21);
+              setMaxAge(45);
             }}
           >
             <Text style={styles.resetText}>Reset</Text>
@@ -102,7 +147,12 @@ export default function FiltersScreen() {
         {/* Age */}
         <SectionHeader title="AGE RANGE" />
         <View style={styles.card}>
-          <AgeSlider />
+          <AgeSlider
+            minAge={minAge}
+            maxAge={maxAge}
+            onMinAgeChange={setMinAge}
+            onMaxAgeChange={setMaxAge}
+          />
         </View>
 
         {/* Religion */}
@@ -164,10 +214,10 @@ export default function FiltersScreen() {
 
       {/* Sticky footer */}
       <SafeAreaView style={styles.stickyFooter} edges={['bottom']}>
-        <Text style={styles.resultCount}>142 results</Text>
+        <Text style={styles.resultCount}>Filters Ready</Text>
         <TouchableOpacity
           style={styles.showBtn}
-          onPress={() => navigation.goBack()}
+          onPress={applyAndGoBack}
         >
           <Text style={styles.showBtnText}>Show matches</Text>
         </TouchableOpacity>
@@ -295,6 +345,21 @@ const styles = StyleSheet.create({
   },
   sliderLabelText: { fontFamily: FONTS.mono, fontSize: 12, color: T.mute },
   sliderRange: { fontSize: 13, fontWeight: '600', color: T.ink },
+  ageStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: T.hair2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepBtnText: { fontSize: 16, color: T.ink, lineHeight: 20 },
   chipGroupLabel: {
     fontSize: 12,
     color: T.mute,
