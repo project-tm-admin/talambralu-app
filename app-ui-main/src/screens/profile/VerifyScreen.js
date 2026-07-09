@@ -95,7 +95,7 @@ export default function VerifyScreen() {
           title="Verify your income"
           subtitle="Upload a recent paystub for badge"
           cta="Upload →"
-          onPress={() => navigation.navigate(‘DocumentUpload’, { documentType: ‘INCOME’ })}
+          onPress={() => navigation.navigate('DocumentUpload', { documentType: 'INCOME' })}
         />
 
         <ActionRow
@@ -103,7 +103,7 @@ export default function VerifyScreen() {
           title="Verify your visa"
           subtitle="H-1B · Upload I-797 for badge"
           cta="Upload →"
-          onPress={() => navigation.navigate(‘DocumentUpload’, { documentType: ‘VISA’ })}
+          onPress={() => navigation.navigate('DocumentUpload', { documentType: 'VISA' })}
         />
 
         <TouchableOpacity style={styles.notifRow} activeOpacity={0.7}>
