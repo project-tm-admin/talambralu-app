@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ────────────────────────────────────────────────────────────────
+
+    // Is the requester signed in?
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Is the requester the owner of this document?
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Is the requester a participant in a conversation?
+    function isParticipant(convData) {
+      return isAuth() && request.auth.uid in convData.participants;
+    }
+
+    // Has the user completed onboarding?
+    function isOnboarded(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.onboardingComplete == true;
+    }
+
+    // Is the requester blocked by the target user?
+    function isBlocked(targetUid) {
+      let blockedDoc = get(/databases/$(database)/documents/blockedUsers/$(targetUid));
+      return blockedDoc.data != null &&
+             blockedDoc.data.blocked.hasAny([{'uid': request.auth.uid}]);
+    }
+
+    // ─── users/{uid} ─────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Read own document always
+      allow read: if isOwner(uid);
+
+      // Other authenticated + onboarded users can read public profiles
+      // (blocked users cannot read each other)
+      allow read: if isAuth()
+                  && isOnboarded(request.auth.uid)
+                  && !isBlocked(uid);
+
+      // Only the owner can write their own document
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+
+      // Never allow client-side deletes
+      allow delete: if false;
+    }
+
+    // ─── interests/{uid} ─────────────────────────────────────────────────────
+    match /interests/{uid} {
+      // Only the owner can read/write their own interests doc
+      allow read, write: if isOwner(uid);
+    }
+
+    // ─── conversations/{convId} ──────────────────────────────────────────────
+    match /conversations/{convId} {
+      // Only participants can read the conversation
+      allow read: if isAuth() && isParticipant(resource.data);
+
+      // Only the backend (via Admin SDK) creates conversations
+      // Participants can update (archive, read receipts, lastMessage)
+      allow create: if false;
+      allow update: if isAuth() && isParticipant(resource.data);
+      allow delete: if false;
+
+      // ─── messages/{msgId} ────────────────────────────────────────────────
+      match /messages/{msgId} {
+        allow read: if isAuth() && isParticipant(
+          get(/databases/$(database)/documents/conversations/$(convId)).data
+        );
+        // Sender must be authenticated and a participant
+        allow create: if isAuth()
+                      && isParticipant(
+                           get(/databases/$(database)/documents/conversations/$(convId)).data
+                         )
+                      && request.resource.data.from == request.auth.uid;
+        allow update: if isAuth()
+                      && isParticipant(
+                           get(/databases/$(database)/documents/conversations/$(convId)).data
+                         );
+        allow delete: if false;
+      }
+    }
+
+    // ─── notifications/{uid}/items/{notifId} ─────────────────────────────────
+    match /notifications/{uid}/items/{notifId} {
+      // Only the owner can read their notifications
+      allow read: if isOwner(uid);
+      // Backend writes notifications; client can only mark them read (update)
+      allow create: if false;
+      allow update: if isOwner(uid)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'readAt']);
+      allow delete: if false;
+    }
+
+    // ─── profileVisitors/{uid}/visitors/{visitorUid} ─────────────────────────
+    match /profileVisitors/{uid}/visitors/{visitorUid} {
+      // Only the profile owner can read who visited them
+      allow read: if isOwner(uid);
+      // Authenticated users can write a visit record for someone else's profile
+      allow write: if isAuth() && request.auth.uid == visitorUid;
+    }
+
+    // ─── blockedUsers/{uid} ──────────────────────────────────────────────────
+    match /blockedUsers/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ─── reports/{reportId} ──────────────────────────────────────────────────
+    match /reports/{reportId} {
+      // Anyone authenticated can file a report
+      allow create: if isAuth()
+                    && request.resource.data.reporterUid == request.auth.uid;
+      // Only the reporter can read their own reports
+      allow read: if isAuth()
+                  && resource.data.reporterUid == request.auth.uid;
+      // Updates and deletes only via Admin SDK
+      allow update, delete: if false;
+    }
+
+    // ─── verificationQueue/{docId} ───────────────────────────────────────────
+    match /verificationQueue/{docId} {
+      // Users can submit their own verification requests
+      allow create: if isAuth()
+                    && request.resource.data.uid == request.auth.uid;
+      // Users can read their own submissions
+      allow read: if isAuth() && resource.data.uid == request.auth.uid;
+      // Only Admin SDK can approve/reject
+      allow update, delete: if false;
+    }
+
+    // ─── savedSearches/{uid}/searches/{searchId} ─────────────────────────────
+    match /savedSearches/{uid}/searches/{searchId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ─── sessions/{uid}/devices/{deviceId} ───────────────────────────────────
+    match /sessions/{uid}/devices/{deviceId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ─── Deny everything else ─────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

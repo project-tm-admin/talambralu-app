@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "873566729503",
+    "project_id": "talambralu-matrimony-e15c2",
+    "storage_bucket": "talambralu-matrimony-e15c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:873566729503:android:3b5f2c805707d46fd0ec2a",
+        "android_client_info": {
+          "package_name": "com.talambralu.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "873566729503-m68o8je99ao8qh6agnv26h92crklqctm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5zjSZggOM93yz1mhi6a7RzHYQDmlfm4M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "873566729503-m68o8je99ao8qh6agnv26h92crklqctm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "873566729503-70jopg6at5uoepmqbndnp14avtfg5re6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.talambralu.talambralu"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:873566729503:android:018d73bb15729d3dd0ec2a",
+        "android_client_info": {
+          "package_name": "com.talambralu.talambralu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "873566729503-m68o8je99ao8qh6agnv26h92crklqctm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5zjSZggOM93yz1mhi6a7RzHYQDmlfm4M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "873566729503-m68o8je99ao8qh6agnv26h92crklqctm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "873566729503-70jopg6at5uoepmqbndnp14avtfg5re6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.talambralu.talambralu"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

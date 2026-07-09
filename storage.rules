@@ -1,0 +1,62 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Max file size helper
+    function maxSize(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    // Only allow image MIME types
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // ─── Profile photos: profilePhotos/{uid}/{filename} ───────────────────────
+    match /profilePhotos/{uid}/{filename} {
+      // Any authenticated user can read profile photos (for match cards, etc.)
+      allow read: if isAuth();
+
+      // Only the owner can upload — must be image, max 10 MB
+      allow write: if isOwner(uid)
+                   && isImage()
+                   && maxSize(10);
+
+      // Owner can delete their own photos
+      allow delete: if isOwner(uid);
+    }
+
+    // ─── Verification documents: verification/{uid}/{filename} ────────────────
+    match /verification/{uid}/{filename} {
+      // Owner can upload verification docs (ID, visa, etc.) — max 15 MB
+      allow write: if isOwner(uid)
+                   && maxSize(15)
+                   && (
+                        isImage()
+                     || request.resource.contentType == 'application/pdf'
+                   );
+
+      // Only the owner can read their own verification docs
+      // (admin reads via Admin SDK which bypasses these rules)
+      allow read: if isOwner(uid);
+
+      // No client-side deletes on verification docs
+      allow delete: if false;
+    }
+
+    // ─── Deny everything else ─────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
