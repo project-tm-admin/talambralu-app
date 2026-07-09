@@ -26,6 +26,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Expo
+.expo/
+
 # Deployment / Infra
 cdk.out/
 terraform.tfstate*
