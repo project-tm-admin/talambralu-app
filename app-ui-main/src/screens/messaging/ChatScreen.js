@@ -6,6 +6,7 @@ import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import Avatar from '../../components/Avatar';
 import { VerifyDot } from '../../components/VerifyBadge';
+import { useSocket } from '../../context/SocketContext';
 
 const MESSAGES = [
   { id: 1, from: 'them', text: "Namaste! I loved your answer about home — the paati's kitchen metaphor really resonated 🌸", time: '10:02 AM' },
@@ -103,6 +104,7 @@ function HoroBubble() {
 export default function ChatScreen() {
   const navigation = useNavigation();
   const [message, setMessage] = useState('');
+  const { connected, reconnecting, socketError } = useSocket();
 
   return (
     <View style={styles.container}>
@@ -118,7 +120,9 @@ export default function ChatScreen() {
                 <Text style={styles.chatName}>Priya M.</Text>
                 <VerifyDot size={12} />
               </View>
-              <Text style={styles.onlineText}>Online now</Text>
+              <Text style={styles.onlineText}>
+                {connected ? 'Online now' : reconnecting ? 'Reconnecting…' : socketError ? 'Offline' : 'Connecting…'}
+              </Text>
             </View>
           </View>
           <View style={styles.topActions}>

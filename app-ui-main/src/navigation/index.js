@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../theme';
+import { SocketProvider } from '../context/SocketContext';
 
 // Auth screens
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
@@ -147,59 +148,61 @@ function MainTabs() {
 export default function Navigation() {
   return (
     <SafeAreaProvider>
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          cardStyleInterpolator: ({ current, layouts }) => ({
-            cardStyle: {
-              transform: [
-                {
-                  translateX: current.progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [layouts.screen.width, 0],
-                  }),
+      <SocketProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              cardStyleInterpolator: ({ current, layouts }) => ({
+                cardStyle: {
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [layouts.screen.width, 0],
+                      }),
+                    },
+                  ],
                 },
-              ],
-            },
-          }),
-        }}
-      >
-        {/* Auth */}
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
-        <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
-        <Stack.Screen name="OTP" component={OTPScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+              }),
+            }}
+          >
+            {/* Auth */}
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="EmailSignup" component={EmailSignupScreen} />
+            <Stack.Screen name="PhoneSignup" component={PhoneSignupScreen} />
+            <Stack.Screen name="OTP" component={OTPScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
 
-        {/* Profile creation */}
-        <Stack.Screen name="NameDOB" component={NameDOBScreen} />
-        <Stack.Screen name="Gender" component={GenderScreen} />
-        <Stack.Screen name="USLocation" component={USLocationScreen} />
-        <Stack.Screen name="IndiaOrigin" component={IndiaOriginScreen} />
-        <Stack.Screen name="Religion" component={ReligionScreen} />
-        <Stack.Screen name="Education" component={EducationScreen} />
-        <Stack.Screen name="Visa" component={VisaScreen} />
-        <Stack.Screen name="Family" component={FamilyScreen} />
-        <Stack.Screen name="Horoscope" component={HoroscopeScreen} />
-        <Stack.Screen name="Diet" component={DietScreen} />
-        <Stack.Screen name="Photos" component={PhotosScreen} />
-        <Stack.Screen name="About" component={AboutScreen} />
-        <Stack.Screen name="Preferences" component={PreferencesScreen} />
-        <Stack.Screen name="Verify" component={VerifyScreen} />
-        <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
-        <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
+            {/* Profile creation */}
+            <Stack.Screen name="NameDOB" component={NameDOBScreen} />
+            <Stack.Screen name="Gender" component={GenderScreen} />
+            <Stack.Screen name="USLocation" component={USLocationScreen} />
+            <Stack.Screen name="IndiaOrigin" component={IndiaOriginScreen} />
+            <Stack.Screen name="Religion" component={ReligionScreen} />
+            <Stack.Screen name="Education" component={EducationScreen} />
+            <Stack.Screen name="Visa" component={VisaScreen} />
+            <Stack.Screen name="Family" component={FamilyScreen} />
+            <Stack.Screen name="Horoscope" component={HoroscopeScreen} />
+            <Stack.Screen name="Diet" component={DietScreen} />
+            <Stack.Screen name="Photos" component={PhotosScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="Verify" component={VerifyScreen} />
+            <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
+            <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
 
-        {/* Main app */}
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
-        <Stack.Screen name="Filters" component={FiltersScreen} />
-        <Stack.Screen name="Chat" component={ChatScreen} />
-        <Stack.Screen name="Call" component={CallScreen} />
-        <Stack.Screen name="Verifications" component={VerificationsScreen} />
-        <Stack.Screen name="ProfileVisitors" component={ProfileVisitorsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+            {/* Main app */}
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="MatchDetail" component={MatchDetailScreen} />
+            <Stack.Screen name="Filters" component={FiltersScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Call" component={CallScreen} />
+            <Stack.Screen name="Verifications" component={VerificationsScreen} />
+            <Stack.Screen name="ProfileVisitors" component={ProfileVisitorsScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SocketProvider>
     </SafeAreaProvider>
   );
 }
