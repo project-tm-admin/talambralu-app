@@ -13,8 +13,7 @@ import TopBar from '../../components/TopBar';
 import Primary from '../../components/Primary';
 import { uploadVerificationDoc } from '../../firebase/storage';
 import { useApp } from '../../store/AppContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { submitVerification } from '../../firebase/firestore';
 
 // expo-camera may not be available in Expo Go — lazy load
 let CameraView, useCameraPermissions;
@@ -70,9 +69,7 @@ export default function FaceVerificationScreen() {
             label="Mark as Pending & Go Back"
             onPress={async () => {
               try {
-                await updateDoc(doc(db, 'profiles', firebaseUser.uid), {
-                  'profile.faceVerifPending': true,
-                });
+                await submitVerification(firebaseUser.uid, 'face', null);
               } catch {}
               navigation.goBack();
             }}
@@ -154,11 +151,8 @@ export default function FaceVerificationScreen() {
         'FACE_SELFIE'
       );
 
-      // Update Firestore: mark face verification as pending
-      await updateDoc(doc(db, 'profiles', firebaseUser.uid), {
-        'profile.faceVerifPending': true,
-        'profile.faceVerifSelfieUrl': downloadUrl,
-      });
+      // Submit to verificationQueue
+      await submitVerification(firebaseUser.uid, 'face', downloadUrl);
 
       setStatus('done');
     } catch (err) {

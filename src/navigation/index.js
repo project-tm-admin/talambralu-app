@@ -39,7 +39,7 @@ import VisaScreen          from '../screens/profile/VisaScreen';
 import FamilyScreen        from '../screens/profile/FamilyScreen';
 import HoroscopeScreen     from '../screens/profile/HoroscopeScreen';
 import DietScreen          from '../screens/profile/DietScreen';
-import PhotosScreen        from '../screens/profile/PhotosScreen';
+// PhotosScreen lazy-loaded (uses expo-image-picker — eager load crashes on startup)
 import AboutScreen         from '../screens/profile/AboutScreen';
 import PreferencesScreen   from '../screens/profile/PreferencesScreen';
 import ProfileManagerScreen from '../screens/profile/ProfileManagerScreen';
@@ -50,7 +50,7 @@ import MyProfileScreen     from '../screens/profile/MyProfileScreen';
 import VerificationsScreen from '../screens/profile/VerificationsScreen';
 import ProfileVisitorsScreen from '../screens/profile/ProfileVisitorsScreen';
 import EditProfileScreen   from '../screens/profile/EditProfileScreen';
-import EditPhotosScreen    from '../screens/profile/EditPhotosScreen';
+// EditPhotosScreen lazy-loaded (uses expo-image-picker — eager load crashes on startup)
 import EditAboutScreen     from '../screens/profile/EditAboutScreen';
 import EditCareerScreen    from '../screens/profile/EditCareerScreen';
 import EditFamilyScreen    from '../screens/profile/EditFamilyScreen';
@@ -75,8 +75,8 @@ import CallScreen          from '../screens/messaging/CallScreen';
 import PremiumScreen       from '../screens/premium/PremiumScreen';
 import PaywallSheet        from '../screens/premium/PaywallSheet';
 
-import DocumentUploadScreen  from '../screens/verification/DocumentUploadScreen';
-import FaceVerificationScreen from '../screens/verification/FaceVerificationScreen';
+import DocumentUploadScreen    from '../screens/verification/DocumentUploadScreen';
+// FaceVerificationScreen and DocVerificationScreen lazy-loaded (use expo-image-picker)
 
 const Stack = createStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -230,7 +230,7 @@ export default function Navigation({ navigationRef, onReady }) {
               <Stack.Screen name="Family"         component={FamilyScreen} />
               <Stack.Screen name="Horoscope"      component={HoroscopeScreen} />
               <Stack.Screen name="Diet"           component={DietScreen} />
-              <Stack.Screen name="Photos"         component={PhotosScreen} />
+              <Stack.Screen name="Photos"         getComponent={() => require('../screens/profile/PhotosScreen').default} />
               <Stack.Screen name="About"          component={AboutScreen} />
               <Stack.Screen name="Preferences"    component={PreferencesScreen} />
               <Stack.Screen name="ProfileManager" component={ProfileManagerScreen} />
@@ -246,10 +246,11 @@ export default function Navigation({ navigationRef, onReady }) {
               <Stack.Screen name="Call"               component={CallScreen} />
               <Stack.Screen name="Verifications"      component={VerificationsScreen} />
               <Stack.Screen name="DocumentUpload"     component={DocumentUploadScreen} />
-              <Stack.Screen name="FaceVerification"   component={FaceVerificationScreen} />
+              <Stack.Screen name="FaceVerification"   getComponent={() => require('../screens/verification/FaceVerificationScreen').default} />
+              <Stack.Screen name="DocVerification"    getComponent={() => require('../screens/verification/DocVerificationScreen').default} />
               <Stack.Screen name="ProfileVisitors"    component={ProfileVisitorsScreen} />
               <Stack.Screen name="EditProfile"        component={EditProfileScreen} />
-              <Stack.Screen name="EditPhotos"         component={EditPhotosScreen} />
+              <Stack.Screen name="EditPhotos"         getComponent={() => require('../screens/profile/EditPhotosScreen').default} />
               <Stack.Screen name="EditAbout"          component={EditAboutScreen} />
               <Stack.Screen name="EditCareer"         component={EditCareerScreen} />
               <Stack.Screen name="EditFamily"         component={EditFamilyScreen} />

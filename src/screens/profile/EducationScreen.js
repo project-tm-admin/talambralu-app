@@ -21,7 +21,11 @@ export default function EducationScreen() {
   const [company,     setCompany]     = useState('');
   const [incomeRange, setIncomeRange] = useState('$150–200K');
 
+  // Require at least one of: degree or job title
+  const isValid = degree.trim().length > 0 || jobTitle.trim().length > 0;
+
   const handleContinue = async () => {
+    if (!isValid) return;
     await save({
       education: degree,
       university,
@@ -67,7 +71,7 @@ export default function EducationScreen() {
           </View>
         </View>
 
-        <Primary label="Continue" loading={saving} onPress={handleContinue} style={{ marginTop: 24 }} />
+        <Primary label="Continue" loading={saving} onPress={handleContinue} disabled={!isValid} style={{ marginTop: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -33,10 +33,20 @@ export default function NameDOBScreen() {
   const [day,       setDay]       = useState('');
   const [year,      setYear]      = useState('');
 
+  const birthYear  = parseInt(year, 10);
+  const age        = !isNaN(birthYear) ? new Date().getFullYear() - birthYear : null;
+  const ageDisplay = age !== null ? age : '–';
+
+  // Require: first name + a plausible birth year (18–80 years old)
+  const isValid = firstName.trim().length > 0
+    && year.trim().length === 4
+    && age !== null
+    && age >= 18
+    && age <= 80;
+
   const handleContinue = async () => {
+    if (!isValid) return;
     const dobStr = `${month} ${day}, ${year}`;
-    const birthYear = parseInt(year, 10);
-    const age = birthYear ? new Date().getFullYear() - birthYear : null;
     await save({
       firstName,
       lastName,
@@ -46,10 +56,6 @@ export default function NameDOBScreen() {
     });
     navigation.navigate('Gender');
   };
-
-  const ageDisplay = year && !isNaN(parseInt(year, 10))
-    ? new Date().getFullYear() - parseInt(year, 10)
-    : '–';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -80,6 +86,7 @@ export default function NameDOBScreen() {
           label="Continue"
           loading={saving}
           onPress={handleContinue}
+          disabled={!isValid}
           style={{ marginTop: 24 }}
         />
       </ScrollView>

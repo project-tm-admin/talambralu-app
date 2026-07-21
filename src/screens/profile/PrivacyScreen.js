@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,29 @@ import {
   Switch,
   ScrollView,
   StyleSheet,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
+import { useApp } from '../../store/AppContext';
+import {
+  savePrivacySettings,
+  getBlockedUsers,
+  unblockUser,
+  fetchUsersByIds,
+} from '../../firebase/firestore';
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+const DEFAULTS = {
+  showOnlineStatus: true,
+  showLastSeen:     false,
+  readReceipts:     true,
+  incognito:        false,
+};
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -44,16 +62,10 @@ function ChevronRight() {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function GradientAvatar({ colors }) {
-  return (
-    <View style={[styles.avatar, { backgroundColor: '#C4856A' }]} />
-  );
-}
-
 function InitialAvatar({ initial, bg }) {
   return (
-    <View style={[styles.avatar, { backgroundColor: bg, justifyContent: 'center', alignItems: 'center' }]}>
-      <Text style={styles.avatarInitial}>{initial}</Text>
+    <View style={[styles.avatar, { backgroundColor: bg || T.hair, justifyContent: 'center', alignItems: 'center' }]}>
+      <Text style={styles.avatarInitial}>{initial || '?'}</Text>
     </View>
   );
 }
@@ -105,15 +117,30 @@ function ToggleRow({ label, subtitle, value, onValueChange, borderBottom }) {
 
 // ─── Blocked user row ─────────────────────────────────────────────────────────
 
-function BlockedRow({ avatar, name, meta, borderBottom }) {
+// Derive initials + a consistent bg colour from a name string
+const BG_PALETTE = ['#C4856A', '#8BA8C4', '#8AC4A0', '#C4A88B', '#A88BC4'];
+function nameColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % BG_PALETTE.length;
+  return BG_PALETTE[h];
+}
+
+function BlockedRow({ user, onUnblock, borderBottom }) {
+  const name = user.profile?.firstName
+    ? `${user.profile.firstName} ${(user.profile.lastName || '').slice(0, 1)}.`.trim()
+    : 'Unknown';
+  const age  = user.profile?.age  || user.profile?.dob ? '' : '';
+  const city = user.profile?.city || '';
+  const meta = [age, city].filter(Boolean).join(' · ');
+
   return (
     <View style={[styles.row, styles.blockedRow, borderBottom && styles.rowBorder]}>
-      {avatar}
+      <InitialAvatar initial={name[0]} bg={nameColor(name)} />
       <View style={styles.blockedInfo}>
         <Text style={styles.blockedName}>{name}</Text>
-        <Text style={styles.blockedMeta}>{meta}</Text>
+        {meta ? <Text style={styles.blockedMeta}>{meta}</Text> : null}
       </View>
-      <TouchableOpacity style={styles.unblockBtn} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.unblockBtn} activeOpacity={0.7} onPress={onUnblock}>
         <Text style={styles.unblockText}>Unblock</Text>
       </TouchableOpacity>
     </View>
@@ -124,11 +151,82 @@ function BlockedRow({ avatar, name, meta, borderBottom }) {
 
 export default function PrivacyScreen() {
   const navigation = useNavigation();
+  const { userDoc, firebaseUser } = useApp();
+  const isPremium = userDoc?.isPremium || false;
 
-  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
-  const [showLastSeen, setShowLastSeen]         = useState(false);
-  const [readReceipts, setReadReceipts]         = useState(true);
-  const [incognito, setIncognito]               = useState(false);
+  const [prefs, setPrefs]               = useState({ ...DEFAULTS });
+  const [blocked, setBlocked]           = useState([]);
+  const [blockedLoading, setBLoading]   = useState(true);
+  const saveTimer                       = useRef(null);
+
+  // Hydrate prefs from Firestore on mount
+  useEffect(() => {
+    const saved = userDoc?.settings?.privacy;
+    if (saved) setPrefs(prev => ({ ...prev, ...saved }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load blocked users
+  useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) { setBLoading(false); return; }
+    (async () => {
+      try {
+        const entries = await getBlockedUsers(uid); // returns [{ uid, ... }]
+        if (entries.length > 0) {
+          const uids  = entries.map(e => e.uid);
+          const users = await fetchUsersByIds(uids);
+          setBlocked(users);
+        }
+      } catch (e) {
+        console.error('Failed to load blocked users:', e);
+      } finally {
+        setBLoading(false);
+      }
+    })();
+  }, [firebaseUser?.uid]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  const updatePref = useCallback((key, value) => {
+    // Premium gate for incognito
+    if (key === 'incognito' && value && !isPremium) {
+      Alert.alert(
+        'Premium Required',
+        'Incognito browsing is a Talambralu Premium feature. Upgrade to browse profiles invisibly.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setPrefs(prev => {
+      const next = { ...prev, [key]: value };
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        const uid = firebaseUser?.uid;
+        if (uid) savePrivacySettings(uid, next).catch(console.error);
+      }, 500);
+      return next;
+    });
+  }, [firebaseUser, isPremium]);
+
+  const handleUnblock = useCallback(async (theirUid) => {
+    Alert.alert('Unblock user?', 'They will be able to find and send you interests again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unblock',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await unblockUser(firebaseUser.uid, theirUid);
+            setBlocked(prev => prev.filter(u => u.uid !== theirUid));
+          } catch (e) {
+            console.error('Unblock failed:', e);
+            Alert.alert('Error', 'Could not unblock this user. Please try again.');
+          }
+        },
+      },
+    ]);
+  }, [firebaseUser?.uid]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -167,58 +265,67 @@ export default function PrivacyScreen() {
         <View style={styles.card}>
           <ToggleRow
             label="Show online status"
-            value={showOnlineStatus}
-            onValueChange={setShowOnlineStatus}
+            value={prefs.showOnlineStatus}
+            onValueChange={v => updatePref('showOnlineStatus', v)}
             borderBottom
           />
           <ToggleRow
             label="Show last seen"
-            value={showLastSeen}
-            onValueChange={setShowLastSeen}
+            value={prefs.showLastSeen}
+            onValueChange={v => updatePref('showLastSeen', v)}
             borderBottom
           />
           <ToggleRow
             label="Read receipts"
-            value={readReceipts}
-            onValueChange={setReadReceipts}
+            value={prefs.readReceipts}
+            onValueChange={v => updatePref('readReceipts', v)}
             borderBottom
           />
           <ToggleRow
             label="Incognito browsing"
-            subtitle="Visit profiles without being seen · Premium"
-            value={incognito}
-            onValueChange={setIncognito}
+            subtitle={
+              isPremium
+                ? 'Visit profiles without being seen'
+                : 'Visit profiles without being seen · Premium'
+            }
+            value={prefs.incognito}
+            onValueChange={v => updatePref('incognito', v)}
           />
         </View>
 
         {/* ── BLOCKED ── */}
         <SectionHeader
-          label="BLOCKED · 4"
+          label={`BLOCKED · ${blocked.length}`}
           right={
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.seeAll}>See all</Text>
-            </TouchableOpacity>
+            blocked.length > 3 ? (
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            ) : null
           }
         />
         <View style={styles.card}>
-          <BlockedRow
-            avatar={<GradientAvatar colors={['#C4856A', '#A06050']} />}
-            name="Rahul M."
-            meta="34 · NJ · blocked 2 days ago"
-            borderBottom
-          />
-          <BlockedRow
-            avatar={<InitialAvatar initial="K" bg="#8BA8C4" />}
-            name="Kiran T."
-            meta="31 · TX · blocked last week"
-            borderBottom
-          />
-          <BlockedRow
-            avatar={<InitialAvatar initial="S" bg="#8AC4A0" />}
-            name="Suresh B."
-            meta="36 · CA · blocked last week"
-          />
+          {blockedLoading ? (
+            <View style={styles.emptyBlocked}>
+              <ActivityIndicator size="small" color={T.mute} />
+            </View>
+          ) : blocked.length === 0 ? (
+            <View style={styles.emptyBlocked}>
+              <Text style={styles.emptyBlockedText}>No blocked users</Text>
+            </View>
+          ) : (
+            blocked.slice(0, 3).map((u, i) => (
+              <BlockedRow
+                key={u.uid}
+                user={u}
+                onUnblock={() => handleUnblock(u.uid)}
+                borderBottom={i < Math.min(blocked.length, 3) - 1}
+              />
+            ))
+          )}
         </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -385,5 +492,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: T.ink,
     fontWeight: '500',
+  },
+
+  // ── Empty blocked state ───────────────────────────────────────────────────────
+  emptyBlocked: {
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
+  emptyBlockedText: {
+    fontSize: 14,
+    color: T.mute,
   },
 });

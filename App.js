@@ -4,7 +4,6 @@
  * - Wraps everything in AppProvider
  * - Sets up notification listeners for navigation
  */
-import 'expo-dev-client'; // comment out if not using dev client
 import React, { useEffect, useCallback, useRef } from 'react';
 import { LogBox } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';

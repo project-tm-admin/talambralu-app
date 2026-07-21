@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import Avatar from '../../components/Avatar';
 import { VerifyDot } from '../../components/VerifyBadge';
 import { useSocket } from '../../context/SocketContext';
+import { useChatMessages } from '../../hooks/useChatMessages';
 
-const MESSAGES = [
-  { id: 1, from: 'them', text: "Namaste! I loved your answer about home — the paati's kitchen metaphor really resonated 🌸", time: '10:02 AM' },
-  { id: 2, from: 'me', text: "Thank you! It felt like the truest way to describe it. How would you describe home for yourself?", time: '10:15 AM' },
-  { id: 3, from: 'them', text: "Home for me is the sound of my mother's voice on a Sunday morning call, and the smell of Biryani from our Hyderabad trips.", time: '10:18 AM' },
-  { id: 4, from: 'me', text: "That's beautiful. I could almost smell it! Are you originally from Hyderabad?", time: '10:22 AM' },
-  { id: 5, from: 'them', text: "Born there, but grew up in Vijayawada. Moved to New Jersey for my PhD. You?", time: '10:25 AM' },
-  { id: 6, from: 'me', text: "Similar story — Vijayawada roots, came to Bay Area for work after my MS. Small world!", time: '10:27 AM' },
-];
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 
 function BackIcon() {
   return (
@@ -103,8 +102,21 @@ function HoroBubble() {
 
 export default function ChatScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const [message, setMessage] = useState('');
   const { connected, reconnecting, socketError } = useSocket();
+
+  const matchId = route.params?.matchId;
+  const otherUser = route.params?.otherUser;
+  const otherName = otherUser?.fullName || otherUser?.name || 'Chat';
+  const otherVerified = otherUser?.isFaceVerified ?? otherUser?.verified ?? false;
+
+  const { messages, loading, error, retry, sendMessage, currentUserId } = useChatMessages(matchId);
+
+  const handleSend = () => {
+    if (!connected) return;
+    if (sendMessage(message)) setMessage('');
+  };
 
   return (
     <View style={styles.container}>
@@ -114,11 +126,11 @@ export default function ChatScreen() {
             <BackIcon />
           </TouchableOpacity>
           <View style={styles.topCenter}>
-            <Avatar name="Priya M." size={36} />
+            <Avatar name={otherName} size={36} />
             <View>
               <View style={styles.nameVerifyRow}>
-                <Text style={styles.chatName}>Priya M.</Text>
-                <VerifyDot size={12} />
+                <Text style={styles.chatName}>{otherName}</Text>
+                {otherVerified && <VerifyDot size={12} />}
               </View>
               <Text style={styles.onlineText}>
                 {connected ? 'Online now' : reconnecting ? 'Reconnecting…' : socketError ? 'Offline' : 'Connecting…'}
@@ -152,21 +164,39 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
         >
-          {MESSAGES.map(msg => (
-            <View key={msg.id} style={[styles.msgWrap, msg.from === 'me' ? styles.msgWrapMe : styles.msgWrapThem]}>
-              {msg.from === 'them' && <Avatar name="Priya M." size={28} style={{ marginBottom: 4 }} />}
-              <View style={[styles.bubble, msg.from === 'me' ? styles.bubbleMe : styles.bubbleThem]}>
-                <Text style={[styles.bubbleText, msg.from === 'me' ? styles.bubbleTextMe : styles.bubbleTextThem]}>
-                  {msg.text}
-                </Text>
-                <Text style={[styles.bubbleTime, msg.from === 'me' ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
-                  {msg.time}
-                </Text>
-              </View>
+          {loading && (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color={T.accent} />
             </View>
-          ))}
+          )}
 
-          <HoroBubble />
+          {!loading && error && (
+            <View style={styles.center}>
+              <Text style={styles.emptyText}>Couldn't load messages.</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={retry}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!loading && !error && messages.map(msg => {
+            const from = msg.senderId === currentUserId ? 'me' : 'them';
+            return (
+              <View key={msg.id} style={[styles.msgWrap, from === 'me' ? styles.msgWrapMe : styles.msgWrapThem]}>
+                {from === 'them' && <Avatar name={otherName} size={28} style={{ marginBottom: 4 }} />}
+                <View style={[styles.bubble, from === 'me' ? styles.bubbleMe : styles.bubbleThem]}>
+                  <Text style={[styles.bubbleText, from === 'me' ? styles.bubbleTextMe : styles.bubbleTextThem]}>
+                    {msg.text}
+                  </Text>
+                  <Text style={[styles.bubbleTime, from === 'me' ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
+                    {formatTime(msg.createdAt)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+
+          {!loading && !error && <HoroBubble />}
 
           {/* Safety note */}
           <View style={styles.safetyNote}>
@@ -192,7 +222,11 @@ export default function ChatScreen() {
           <TouchableOpacity style={styles.composerIcon}>
             <MicIcon />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.sendBtn, message.length > 0 && styles.sendBtnActive]}>
+          <TouchableOpacity
+            style={[styles.sendBtn, message.trim().length > 0 && connected && styles.sendBtnActive]}
+            onPress={handleSend}
+            disabled={!connected || message.trim().length === 0}
+          >
             <SendIcon />
           </TouchableOpacity>
         </SafeAreaView>
@@ -203,6 +237,10 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAF8' },
+  center: { alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontSize: 15, color: T.mute, marginBottom: 16 },
+  retryBtn: { padding: 12, backgroundColor: T.accent, borderRadius: 8 },
+  retryText: { color: '#fff', fontWeight: '600' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

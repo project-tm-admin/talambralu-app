@@ -274,6 +274,67 @@ export async function recordProfileVisit(viewerUid, profileUid) {
   });
 }
 
+// ─── User Settings ────────────────────────────────────────────────────────────
+
+export async function saveNotificationSettings(uid, settings) {
+  const updates = {};
+  for (const [key, val] of Object.entries(settings)) {
+    updates[`settings.notifications.${key}`] = val;
+  }
+  await updateDoc(doc(db, 'users', uid), updates);
+}
+
+export async function savePrivacySettings(uid, settings) {
+  const updates = {};
+  for (const [key, val] of Object.entries(settings)) {
+    updates[`settings.privacy.${key}`] = val;
+  }
+  await updateDoc(doc(db, 'users', uid), updates);
+}
+
+// ─── Blocked Users ────────────────────────────────────────────────────────────
+
+export async function getBlockedUsers(uid) {
+  const snap = await getDoc(doc(db, 'blockedUsers', uid));
+  if (!snap.exists()) return [];
+  const blocked = snap.data().blocked || [];
+  // Normalise: support both plain-UID strings and object entries
+  return blocked.map(b => (typeof b === 'string' ? { uid: b } : b)).filter(b => b?.uid);
+}
+
+export async function unblockUser(myUid, theirUid) {
+  const ref  = doc(db, 'blockedUsers', myUid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const blocked = (snap.data().blocked || []).filter(b =>
+    typeof b === 'string' ? b !== theirUid : b.uid !== theirUid
+  );
+  await updateDoc(ref, { blocked });
+}
+
+// ─── Verification Queue ───────────────────────────────────────────────────────
+
+/**
+ * Submit a verification request to verificationQueue.
+ * @param {string}      uid    Firebase user UID
+ * @param {string}      type   'face' | 'govId' | 'visa' | 'income' | 'education'
+ * @param {string|null} docUrl Download URL of the uploaded document
+ */
+export async function submitVerification(uid, type, docUrl) {
+  const ref = doc(collection(db, 'verificationQueue'));
+  await setDoc(ref, {
+    uid,
+    type,
+    docUrl:      docUrl || null,
+    status:      'pending',
+    submittedAt: serverTimestamp(),
+  });
+  // Mark pending on user doc so UI reflects it immediately
+  await updateDoc(doc(db, 'users', uid), {
+    [`verification.${type}Pending`]: true,
+  });
+}
+
 // ─── FCM Token ────────────────────────────────────────────────────────────────
 
 export async function saveFCMToken(uid, token) {

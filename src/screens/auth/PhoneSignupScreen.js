@@ -43,11 +43,12 @@ function LockIcon() {
 
 export default function PhoneSignupScreen() {
   const navigation = useNavigation();
+  const [prefix,  setPrefix]  = useState('+1');
   const [phone,   setPhone]   = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isValid = phone.replace(/\D/g, '').length >= 10;
-  const formattedPhone = `+1${phone.replace(/\D/g, '')}`;
+  const isValid = phone.replace(/\D/g, '').length >= 6;
+  const formattedPhone = `${prefix.startsWith('+') ? prefix : '+' + prefix}${phone.replace(/\D/g, '')}`;
 
   async function handleSendOTP() {
     if (!isValid || loading) return;
@@ -75,17 +76,24 @@ export default function PhoneSignupScreen() {
             <View style={styles.phoneRow}>
               <View style={styles.flagBox}>
                 <USFlag />
-                <Text style={styles.prefix}>+1</Text>
+                <TextInput
+                  style={styles.prefix}
+                  value={prefix}
+                  onChangeText={text => setPrefix(text.startsWith('+') ? text : '+' + text.replace(/\+/g, ''))}
+                  keyboardType="phone-pad"
+                  maxLength={5}
+                  selectTextOnFocus
+                />
               </View>
               <TextInput
                 style={styles.phoneInput}
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="(555) 000-0000"
+                placeholder="0000000000"
                 placeholderTextColor={T.mute}
                 keyboardType="phone-pad"
                 autoFocus
-                maxLength={14}
+                maxLength={15}
               />
             </View>
           </View>
@@ -156,7 +164,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: T.hair2,
   },
-  prefix: { fontSize: 15, fontWeight: '600', color: T.ink },
+  prefix: { fontSize: 15, fontWeight: '600', color: T.ink, minWidth: 36, paddingVertical: 8 },
   phoneInput: {
     flex: 1,
     paddingLeft: 12,

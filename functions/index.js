@@ -199,6 +199,59 @@ exports.onInterestAccepted = functions.firestore
     }
   });
 
+// ─── Trigger 4: Verification queue approved/rejected ─────────────────────────
+//
+// Fires when verificationQueue/{docId} is written.
+// When status changes to 'approved', sets verification.{type}: true on the user doc.
+// When 'rejected', clears the pending flag and notifies the user.
+
+exports.onVerificationStatusChanged = functions.firestore
+  .document('verificationQueue/{docId}')
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return;
+
+    const before = change.before.exists ? change.before.data() : {};
+    const after  = change.after.data();
+
+    // Only act when status actually changed
+    if (before.status === after.status) return;
+
+    const { uid, type, status } = after;
+    if (!uid || !type) return;
+
+    const userRef = db.collection('users').doc(uid);
+
+    if (status === 'approved') {
+      // Grant the verification flag
+      await userRef.update({
+        [`verification.${type}`]:        true,
+        [`verification.${type}Pending`]: false,
+      });
+
+      const title = 'Identity Verified! ✅';
+      const body  = `Your ${type === 'govId' ? 'government ID' : type} verification has been approved.`;
+
+      await Promise.all([
+        sendPushToUser(uid, { title, body, data: { type: 'verification_approved', verType: type } }),
+        writeNotification(uid, { type: 'verification_approved', title, body, meta: { verType: type } }),
+      ]);
+
+    } else if (status === 'rejected') {
+      // Clear pending flag
+      await userRef.update({
+        [`verification.${type}Pending`]: false,
+      });
+
+      const title = 'Verification Update';
+      const body  = `We couldn't verify your ${type === 'govId' ? 'government ID' : type}. Please resubmit with a clearer image.`;
+
+      await Promise.all([
+        sendPushToUser(uid, { title, body, data: { type: 'verification_rejected', verType: type } }),
+        writeNotification(uid, { type: 'verification_rejected', title, body, meta: { verType: type } }),
+      ]);
+    }
+  });
+
 // ─── Agora RTC token (existing) ───────────────────────────────────────────────
 
 exports.generateAgoraToken = functions.https.onCall((data, context) => {

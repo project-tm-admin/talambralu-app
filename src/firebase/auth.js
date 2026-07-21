@@ -1,64 +1,58 @@
 /**
  * Firebase Auth helpers
- * All auth via Firebase JS SDK v10 — no @react-native-firebase dependency.
- * Phone OTP uses signInWithPhoneNumber with a lightweight custom ApplicationVerifier.
- * For production: swap the verifier for a WebView-based reCAPTCHA implementation.
- * For development/testing: add test phone numbers in Firebase Console →
- *   Authentication → Sign-in method → Phone → Test phone numbers.
+ *
+ * Phone OTP flow:
+ *   1. @react-native-firebase/auth triggers SafetyNet/Play Integrity on Android
+ *      so Firebase can send the SMS natively — no Twilio or backend needed.
+ *   2. The verificationId returned by the native SDK is a plain server-side string
+ *      that the Firebase JS SDK can consume directly via PhoneAuthProvider.credential.
+ *   3. signInWithCredential on the JS SDK auth instance keeps Firestore/Storage
+ *      auth state in sync — no token exchange or bridging required.
  */
 import {
-  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  signInWithCredential,
   GoogleAuthProvider,
   OAuthProvider,
-  signInWithCredential,
   signOut as fbSignOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
 } from 'firebase/auth';
 import { auth } from './config';
+import rnfbAuth from '@react-native-firebase/auth';
 
 // auth is initialized once in config.js with getReactNativePersistence(AsyncStorage)
 // All functions below use that single auth instance — never call getAuth() elsewhere
 
 // ─── Phone Auth ───────────────────────────────────────────────────────────────
 
-/**
- * Minimal ApplicationVerifier — satisfies Firebase JS SDK's interface.
- * Firebase skips real reCAPTCHA validation for test phone numbers added
- * in the Firebase Console. For production phone numbers, replace verify()
- * with a real reCAPTCHA token from a WebView widget.
- */
-const silentVerifier = {
-  type: 'recaptcha',
-  verify: () => Promise.resolve(''),
-  reset: () => {},    // Firebase calls reset() after verify() — must exist
-  _reset: () => {},   // Firebase v11 internal alias
-};
-
-// Module-level store for the ConfirmationResult so it never travels
-// through React Navigation params (which can't serialize class instances).
-let _pendingConfirmation = null;
-export function getPendingConfirmation() { return _pendingConfirmation; }
-export function clearPendingConfirmation() { _pendingConfirmation = null; }
+// Module-level store for the verificationId so it never travels through
+// React Navigation params.
+let _pendingVerificationId = null;
+export function getPendingConfirmation() { return _pendingVerificationId; }
+export function clearPendingConfirmation() { _pendingVerificationId = null; }
 
 /**
  * Step 1: Send OTP to phone number.
- * Stores the ConfirmationResult in memory; navigate to OTP screen after.
+ * Native SDK triggers SafetyNet → Firebase sends SMS.
+ * Stores verificationId in memory; navigate to OTP screen after calling this.
  * @param {string} phoneNumber  e.g. "+14155551234"
+ * @returns {Promise<string>} verificationId
  */
 export async function sendPhoneOTP(phoneNumber) {
-  const confirmation = await signInWithPhoneNumber(auth, phoneNumber, silentVerifier);
-  _pendingConfirmation = confirmation;
-  return confirmation; // still returned so callers that don't use the singleton also work
+  const confirmation = await rnfbAuth().signInWithPhoneNumber(phoneNumber);
+  _pendingVerificationId = confirmation.verificationId;
+  return _pendingVerificationId;
 }
 
 /**
- * Step 2: Verify OTP code.
- * @param {ConfirmationResult} confirmation  Returned from sendPhoneOTP
- * @param {string} otp  6-digit code
+ * Step 2: Verify OTP code and complete sign-in via the JS SDK.
+ * @param {string} verificationId  From sendPhoneOTP / getPendingConfirmation
+ * @param {string} otp  6-digit SMS code
  */
-export async function verifyPhoneOTP(confirmation, otp) {
-  return confirmation.confirm(otp);
+export async function verifyPhoneOTP(verificationId, otp) {
+  const credential = PhoneAuthProvider.credential(verificationId, otp);
+  return signInWithCredential(auth, credential);
 }
 
 // ─── Google Sign-In ───────────────────────────────────────────────────────────

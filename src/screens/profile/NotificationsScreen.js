@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -11,6 +11,21 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
+import { useApp } from '../../store/AppContext';
+import { saveNotificationSettings } from '../../firebase/firestore';
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+const DEFAULTS = {
+  pushEnabled:      true,
+  emailEnabled:     true,
+  whatsappEnabled:  false,
+  newInterests:     true,
+  newMessages:      true,
+  newMatches:       true,
+  profileVisitors:  true,
+  promotions:       false,
+};
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -94,18 +109,38 @@ function Card({ children }) {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const { userDoc, firebaseUser } = useApp();
 
-  // CHANNELS
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(true);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+  const [prefs, setPrefs] = useState({ ...DEFAULTS });
+  const saveTimer = useRef(null);
 
-  // NOTIFY ME ABOUT
-  const [newInterests, setNewInterests] = useState(true);
-  const [newMessages, setNewMessages] = useState(true);
-  const [newMatches, setNewMatches] = useState(true);
-  const [profileVisitors, setProfileVisitors] = useState(true);
-  const [promotions, setPromotions] = useState(false);
+  // Hydrate from Firestore on mount
+  useEffect(() => {
+    const saved = userDoc?.settings?.notifications;
+    if (saved) setPrefs(prev => ({ ...prev, ...saved }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  const updatePref = useCallback((key, value) => {
+    setPrefs(prev => {
+      const next = { ...prev, [key]: value };
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        const uid = firebaseUser?.uid;
+        if (uid) saveNotificationSettings(uid, next).catch(console.error);
+      }, 500);
+      return next;
+    });
+  }, [firebaseUser]);
+
+  // Derive display values from the user doc
+  const userEmail   = firebaseUser?.email || userDoc?.email || '';
+  const rawPhone    = userDoc?.profile?.phone || '';
+  const phoneLabel  = rawPhone
+    ? `+${rawPhone.slice(0, 2)} ••• ${rawPhone.slice(-4)}`
+    : '+•• ••• ••••';
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
@@ -137,20 +172,20 @@ export default function NotificationsScreen() {
           <ToggleRow
             title="Push notifications"
             subtitle="On this device"
-            value={pushEnabled}
-            onValueChange={setPushEnabled}
+            value={prefs.pushEnabled}
+            onValueChange={v => updatePref('pushEnabled', v)}
           />
           <ToggleRow
             title="Email"
-            subtitle="anika@gmail.com"
-            value={emailEnabled}
-            onValueChange={setEmailEnabled}
+            subtitle={userEmail}
+            value={prefs.emailEnabled}
+            onValueChange={v => updatePref('emailEnabled', v)}
           />
           <ToggleRow
             title="WhatsApp"
-            subtitle="+1 415 ••• 2419"
-            value={whatsappEnabled}
-            onValueChange={setWhatsappEnabled}
+            subtitle={phoneLabel}
+            value={prefs.whatsappEnabled}
+            onValueChange={v => updatePref('whatsappEnabled', v)}
             isLast
           />
         </Card>
@@ -160,28 +195,28 @@ export default function NotificationsScreen() {
         <Card>
           <ToggleRow
             title="New interests received"
-            value={newInterests}
-            onValueChange={setNewInterests}
+            value={prefs.newInterests}
+            onValueChange={v => updatePref('newInterests', v)}
           />
           <ToggleRow
             title="New messages"
-            value={newMessages}
-            onValueChange={setNewMessages}
+            value={prefs.newMessages}
+            onValueChange={v => updatePref('newMessages', v)}
           />
           <ToggleRow
             title="New matches for you"
-            value={newMatches}
-            onValueChange={setNewMatches}
+            value={prefs.newMatches}
+            onValueChange={v => updatePref('newMatches', v)}
           />
           <ToggleRow
             title="Profile visitors"
-            value={profileVisitors}
-            onValueChange={setProfileVisitors}
+            value={prefs.profileVisitors}
+            onValueChange={v => updatePref('profileVisitors', v)}
           />
           <ToggleRow
             title="Promotions & tips"
-            value={promotions}
-            onValueChange={setPromotions}
+            value={prefs.promotions}
+            onValueChange={v => updatePref('promotions', v)}
             isLast
           />
         </Card>

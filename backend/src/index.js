@@ -10,6 +10,7 @@ const requireAuth = require('./middleware/auth');
 const discoveryRouter  = require('./routes/discovery');
 const interestsRouter  = require('./routes/interests');
 const webhooksRouter   = require('./routes/webhooks');
+const adminRouter      = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
@@ -27,6 +28,9 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // ─── Webhooks (no user auth — verified by shared secret) ─────────────────────
 app.use('/webhooks', webhooksRouter);
+
+// ─── Admin routes (secret-protected, no user token needed) ───────────────────
+app.use('/admin', adminRouter);
 
 // ─── Authenticated routes ────────────────────────────────────────────────────
 app.use('/discovery', requireAuth, discoveryRouter);

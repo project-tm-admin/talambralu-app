@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import Stepper from '../../components/Stepper';
+import { useApp } from '../../store/AppContext';
 
 const TEAL      = '#3D7A6A';
 const TEAL_SOFT = '#D6EDE8';
@@ -84,20 +85,41 @@ function VerifyBadge({ label }) {
   );
 }
 
+// ─── Status pill ─────────────────────────────────────────────────────────────
+
+function StatusPill({ verified, pending }) {
+  if (verified) {
+    return (
+      <View style={[styles.pill, styles.pillVerified]}>
+        <Text style={styles.pillTextVerified}>✓ Verified</Text>
+      </View>
+    );
+  }
+  if (pending) {
+    return (
+      <View style={[styles.pill, styles.pillPending]}>
+        <Text style={styles.pillTextPending}>Pending review</Text>
+      </View>
+    );
+  }
+  return null;
+}
+
 // ─── Verify row ───────────────────────────────────────────────────────────────
 
-function VerifyRow({ icon, title, badge, subtitle }) {
+function VerifyRow({ icon, title, badge, subtitle, onPress, verified, pending }) {
   return (
-    <TouchableOpacity style={styles.row} activeOpacity={0.7}>
+    <TouchableOpacity style={[styles.row, verified && styles.rowVerified]} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconWrap}>{icon}</View>
       <View style={styles.rowBody}>
         <View style={styles.titleRow}>
           <Text style={styles.rowTitle}>{title}</Text>
-          {badge && <VerifyBadge label={badge} />}
+          {badge && !verified && !pending && <VerifyBadge label={badge} />}
+          <StatusPill verified={verified} pending={pending} />
         </View>
         <Text style={styles.rowSub}>{subtitle}</Text>
       </View>
-      <ChevronRight />
+      {!verified && <ChevronRight />}
     </TouchableOpacity>
   );
 }
@@ -105,7 +127,25 @@ function VerifyRow({ icon, title, badge, subtitle }) {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function VerifyScreen() {
-  const navigation = useNavigation();
+  const navigation                    = useNavigation();
+  const { userDoc, completeOnboarding } = useApp();
+  const [finishing, setFinishing]     = useState(false);
+  const v                             = userDoc?.verification || {};
+  const p                             = userDoc?.profile      || {};
+
+  async function handleFinish() {
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      await completeOnboarding();
+      // Navigation switches automatically when isOnboarded becomes true
+    } catch (e) {
+      console.error('completeOnboarding error:', e);
+      setFinishing(false);
+    }
+  }
+
+  const firstName = p.name?.split(' ')[0] || p.firstName || 'there';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -118,7 +158,9 @@ export default function VerifyScreen() {
         {/* Avatar */}
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>AT</Text>
+            <Text style={styles.avatarText}>
+              {firstName.slice(0, 2).toUpperCase()}
+            </Text>
           </View>
           <View style={styles.greenDot}>
             <Svg width={20} height={20} viewBox="0 0 20 20">
@@ -128,7 +170,7 @@ export default function VerifyScreen() {
           </View>
         </View>
 
-        <Text style={styles.title}>You're almost in, Anika</Text>
+        <Text style={styles.title}>You're almost in, {firstName}</Text>
         <Text style={styles.subtitle}>A few quick steps to unlock matches.</Text>
 
         <Text style={styles.sectionLabel}>VERIFIED PROFILES CREATE TRUSTED CONNECTIONS</Text>
@@ -137,30 +179,57 @@ export default function VerifyScreen() {
           icon={<CameraIcon />}
           title="Verify your photo"
           subtitle="Selfie pose · 20 seconds"
+          verified={!!v.face}
+          pending={!!v.facePending && !v.face}
+          onPress={() => navigation.navigate('FaceVerification')}
         />
         <VerifyRow
           icon={<CardIcon />}
           title="Verify your visa"
           badge="GC"
           subtitle="Optional · adds H-1B / GC badge"
+          verified={!!v.visa}
+          pending={!!v.visaPending && !v.visa}
+          onPress={() => navigation.navigate('DocVerification', {
+            type: 'visa', title: 'Verify Visa / Status',
+            hint: 'Upload a copy of your H-1B, Green Card, or visa stamp.',
+          })}
         />
         <VerifyRow
           icon={<BriefcaseIcon />}
-          title="Verify your job"
-          badge="JOB"
-          subtitle="Work email · adds verified employer badge"
+          title="Verify your income"
+          badge="INC"
+          subtitle="Pay stub or offer letter · adds income badge"
+          verified={!!v.income}
+          pending={!!v.incomePending && !v.income}
+          onPress={() => navigation.navigate('DocVerification', {
+            type: 'income', title: 'Verify Income',
+            hint: 'Upload a recent pay stub, offer letter, or bank statement.',
+          })}
         />
         <VerifyRow
           icon={<LinkedInIcon />}
-          title="Verify LinkedIn"
-          badge="IN"
-          subtitle="Connect to import your career history"
+          title="Verify your education"
+          badge="EDU"
+          subtitle="Degree or transcript · adds education badge"
+          verified={!!v.education}
+          pending={!!v.educationPending && !v.education}
+          onPress={() => navigation.navigate('DocVerification', {
+            type: 'education', title: 'Verify Education',
+            hint: 'Upload your degree certificate or official transcript.',
+          })}
         />
         <VerifyRow
           icon={<IdIcon />}
           title="Verify your ID"
           badge="ID"
           subtitle="Government ID · matches see a verified badge"
+          verified={!!v.govId}
+          pending={!!v.govIdPending && !v.govId}
+          onPress={() => navigation.navigate('DocVerification', {
+            type: 'govId', title: 'Verify Government ID',
+            hint: 'Upload your passport, driver\'s licence, or state ID.',
+          })}
         />
 
         <View style={{ height: 16 }} />
@@ -169,11 +238,15 @@ export default function VerifyScreen() {
       {/* Sticky CTA */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.ctaBtn}
-          onPress={() => navigation.navigate('MainTabs')}
+          style={[styles.ctaBtn, finishing && { opacity: 0.75 }]}
+          onPress={handleFinish}
           activeOpacity={0.86}
+          disabled={finishing}
         >
-          <Text style={styles.ctaText}>See your matches  &gt;</Text>
+          {finishing
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.ctaText}>See your matches  &gt;</Text>
+          }
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -282,6 +355,14 @@ const styles = StyleSheet.create({
     color: T.mute,
     lineHeight: 18,
   },
+
+  // ── Status pills ──────────────────────────────────────────────────────────
+  pill:             { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  pillVerified:     { backgroundColor: '#DCEFE2' },
+  pillPending:      { backgroundColor: '#FFF3CD' },
+  pillTextVerified: { fontSize: 11, fontWeight: '700', color: GREEN_DOT },
+  pillTextPending:  { fontSize: 11, fontWeight: '600', color: '#856404' },
+  rowVerified:      { borderColor: '#DCEFE2', backgroundColor: '#F6FBF8' },
 
   // ── Badge ─────────────────────────────────────────────────────────────────
   badge: {

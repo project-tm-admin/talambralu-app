@@ -16,7 +16,7 @@ const PROMPTS = [
   'What does "home" mean to you?',
   'The best conversation I ever had was…',
   'My family would describe me as…',
-  'Something I'm proud of…',
+  "Something I'm proud of…",
 ];
 
 function WaveformViz() {

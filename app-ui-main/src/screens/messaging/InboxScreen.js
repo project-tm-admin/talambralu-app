@@ -1,46 +1,57 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import Avatar from '../../components/Avatar';
 import { VerifyDot } from '../../components/VerifyBadge';
+import { api } from '../../api/client';
 
-const CONVERSATIONS = [
-  {
-    name: 'Priya M.',
-    preview: "That's such a lovely way to describe it! My paati's kitchen smells exactly like...",
-    time: '2m',
-    unread: 2,
-    verified: true,
-    online: true,
-  },
-  {
-    name: 'Kavitha S.',
-    preview: "Looking forward to our call this weekend 🙂",
-    time: '1h',
-    unread: 0,
-    verified: true,
-    online: false,
-  },
-  {
-    name: 'Divya N.',
-    preview: 'Sent a voice message',
-    time: '3h',
-    unread: 1,
-    verified: false,
-    online: false,
-  },
-  {
-    name: 'Rohini P.',
-    preview: "So I was thinking — would you be open to a video call?",
-    time: 'Tue',
-    unread: 0,
-    verified: true,
-    online: false,
-  },
-];
+// GET /v1/matches's exact response shape is undocumented (see story F2.4 Dev
+// Agent Record for what was actually observed/verifiable in this environment).
+// Resolves defensively against several plausible shapes rather than assuming one.
+async function resolveOtherParticipant(match, myId) {
+  const inline = [match.otherUser, match.otherParticipant, match.matchedProfile, match.profile]
+    .find((c) => c && typeof c === 'object');
+  if (inline) return inline;
+
+  if (match.userA && match.userB) {
+    return match.userA.id === myId ? match.userB : match.userA;
+  }
+
+  const idPairs = [
+    ['userAId', 'userBId'],
+    ['user_a_id', 'user_b_id'],
+    ['participantAId', 'participantBId'],
+  ];
+  let otherId = null;
+  for (const [aKey, bKey] of idPairs) {
+    if (match[aKey] != null && match[bKey] != null) {
+      otherId = match[aKey] === myId ? match[bKey] : match[aKey];
+      break;
+    }
+  }
+  if (!otherId) return null;
+
+  try {
+    return await api.get(`/v1/profiles/${otherId}`);
+  } catch (err) {
+    console.error('Failed to resolve match participant profile:', err);
+    return null;
+  }
+}
+
+function toConvDisplay(otherUser) {
+  return {
+    name: otherUser?.fullName || otherUser?.name || 'Match',
+    preview: otherUser?.lastMessagePreview || otherUser?.preview || '',
+    time: otherUser?.lastMessageTime || otherUser?.time || '',
+    unread: otherUser?.unreadCount ?? otherUser?.unread ?? 0,
+    verified: otherUser?.isFaceVerified ?? otherUser?.verified ?? false,
+    online: otherUser?.online ?? false,
+  };
+}
 
 const REQUESTS = [
   { name: 'Meera V.', verified: true },
@@ -92,6 +103,38 @@ function ConvRow({ conv, onPress }) {
 export default function InboxScreen() {
   const navigation = useNavigation();
   const [tab, setTab] = useState('conversations');
+  const [conversations, setConversations] = useState([]);
+  const [convLoading, setConvLoading] = useState(true);
+  const [convError, setConvError] = useState(null);
+
+  const fetchConversations = useCallback(async () => {
+    setConvLoading(true);
+    setConvError(null);
+    try {
+      const [matchesData, meData] = await Promise.all([
+        api.get('/v1/matches'),
+        api.get('/v1/profiles/me'),
+      ]);
+      const rawMatches = matchesData?.data ?? (Array.isArray(matchesData) ? matchesData : []);
+      const myId = meData?.id;
+      const resolved = await Promise.all(
+        rawMatches.map(async (m) => ({
+          matchId: m.id,
+          otherUser: await resolveOtherParticipant(m, myId),
+        }))
+      );
+      setConversations(resolved.filter((c) => c.otherUser));
+    } catch (err) {
+      console.error('Failed to fetch matches:', err);
+      setConvError(err.message);
+    } finally {
+      setConvLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -171,27 +214,49 @@ export default function InboxScreen() {
 
         {tab === 'conversations' && (
           <>
-            {CONVERSATIONS.map((conv, i) => (
+            {convLoading && (
+              <View style={styles.stateWrap}>
+                <ActivityIndicator size="large" color={T.accent} />
+              </View>
+            )}
+
+            {!convLoading && convError && (
+              <View style={styles.stateWrap}>
+                <Text style={styles.emptyText}>Couldn't load conversations.</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={fetchConversations}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!convLoading && !convError && conversations.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No conversations yet</Text>
+              </View>
+            )}
+
+            {!convLoading && !convError && conversations.map((c) => (
               <ConvRow
-                key={i}
-                conv={conv}
-                onPress={() => navigation.navigate('Chat')}
+                key={c.matchId}
+                conv={toConvDisplay(c.otherUser)}
+                onPress={() => navigation.navigate('Chat', { matchId: c.matchId, otherUser: c.otherUser })}
               />
             ))}
 
-            {/* Premium upsell */}
-            <View style={styles.premiumCard}>
-              <View style={styles.premiumIcon}>
-                <StarIcon />
+            {!convLoading && !convError && (
+              <View style={styles.premiumCard}>
+                <View style={styles.premiumIcon}>
+                  <StarIcon />
+                </View>
+                <View style={styles.premiumText}>
+                  <Text style={styles.premiumTitle}>Upgrade to unlock video calls</Text>
+                  <Text style={styles.premiumSub}>See who likes you, unlimited messaging & more</Text>
+                </View>
+                <TouchableOpacity style={styles.upgradeBtn}>
+                  <Text style={styles.upgradeBtnText}>Upgrade</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.premiumText}>
-                <Text style={styles.premiumTitle}>Upgrade to unlock video calls</Text>
-                <Text style={styles.premiumSub}>See who likes you, unlimited messaging & more</Text>
-              </View>
-              <TouchableOpacity style={styles.upgradeBtn}>
-                <Text style={styles.upgradeBtnText}>Upgrade</Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </>
         )}
 
@@ -413,5 +478,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: T.mute,
+  },
+  stateWrap: {
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  retryBtn: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: T.accent,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

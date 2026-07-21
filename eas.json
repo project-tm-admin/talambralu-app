@@ -23,7 +23,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://talambralu-api-711994146830.us-central1.run.app"
+        "EXPO_PUBLIC_API_URL": "https://talambralu-api-873566729503.us-central1.run.app"
       }
     },
     "production": {
@@ -35,7 +35,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://talambralu-api-711994146830.us-central1.run.app"
+        "EXPO_PUBLIC_API_URL": "https://talambralu-api-873566729503.us-central1.run.app"
       }
     }
   },

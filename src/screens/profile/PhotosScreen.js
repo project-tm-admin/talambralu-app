@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Dimensions, Image, ActivityIndicator,
+  ScrollView, Dimensions, Image, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { T, FONTS } from '../../theme';
 import TopBar from '../../components/TopBar';
 import Stepper from '../../components/Stepper';
 import Primary from '../../components/Primary';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadProfilePhoto } from '../../firebase/storage';
 import { updateUserDoc } from '../../firebase/firestore';
 import { useApp } from '../../store/AppContext';
@@ -64,15 +64,18 @@ export default function PhotosScreen() {
   const [saving,     setSaving]     = useState(false);
 
   const pickPhoto = async (slotIndex) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [3, 4],
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
       quality: 0.85,
+      selectionLimit: 1,
     });
-    if (result.canceled) return;
+    if (result.didCancel || result.errorCode) return;
 
-    const uri = result.assets[0].uri;
+    const asset    = result.assets?.[0];
+    const uri      = asset?.uri;
+    const mimeType = asset?.type || 'image/jpeg';
+    if (!uri) return;
+
     const newPhotos = [...photos];
     if (slotIndex < newPhotos.length) {
       newPhotos[slotIndex] = { uri, url: null, uploading: true };
@@ -83,7 +86,7 @@ export default function PhotosScreen() {
 
     // Upload in background
     try {
-      const url = await uploadProfilePhoto(firebaseUser.uid, uri, slotIndex);
+      const url = await uploadProfilePhoto(firebaseUser.uid, uri, slotIndex, undefined, mimeType);
       setPhotos(prev => {
         const updated = [...prev];
         updated[slotIndex] = { uri, url, uploading: false };
@@ -92,6 +95,7 @@ export default function PhotosScreen() {
     } catch (e) {
       console.error('Photo upload failed:', e.message);
       setPhotos(prev => prev.filter((_, i) => i !== slotIndex));
+      Alert.alert('Upload failed', e.message || 'Could not upload photo. Check your connection and try again.');
     }
   };
 

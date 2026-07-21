@@ -1,5 +1,6 @@
 {
   "expo": {
+    "newArchEnabled": false,
     "name": "Talambralu",
     "slug": "talambralu",
     "version": "1.0.0",
@@ -38,7 +39,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.talambralu.app",
-      "versionCode": 4,
+      "versionCode": 8,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
@@ -50,6 +51,8 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-build-properties",
         {
@@ -72,13 +75,6 @@
           "sounds": [
             "./assets/sounds/notification.wav"
           ]
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Talambralu needs access to your photos to upload profile pictures.",
-          "cameraPermission": "Talambralu needs camera access for video calls and profile photos."
         }
       ],
       "expo-apple-authentication",
